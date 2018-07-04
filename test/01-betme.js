@@ -1,6 +1,6 @@
 'use strict';
 
-//import expectThrow from '../node_modules/openzeppelin-solidity/test/helpers/expectThrow';
+import expectThrow from '../node_modules/openzeppelin-solidity/test/helpers/expectThrow';
 
 const BigNumber = web3.BigNumber;
 const chai =require('chai');
