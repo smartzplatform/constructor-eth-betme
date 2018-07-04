@@ -1,0 +1,39 @@
+{
+  "name": "betme-ether",
+  "version": "1.0.0",
+  "description": "Made a bet with specific punter or suggest your bet contract to public. Bet for anything you want, the object is up to you!",
+  "main": "index.js",
+  "scripts": {
+    "test": "./node_modules/.bin/truffle test",
+    "develop": "./node_modules/.bin/truffle develop"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/smartzplatform/betme-ether.git"
+  },
+  "keywords": [
+    "solidity",
+    "ethereum",
+    "contract"
+  ],
+  "author": "mxpaul",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/smartzplatform/betme-ether/issues"
+  },
+  "homepage": "https://github.com/smartzplatform/betme-ether#readme",
+  "devDependencies": {
+    "babel-env": "^2.4.1",
+    "babel-polyfill": "^6.26.0",
+    "babel-preset-env": "^1.7.0",
+    "babel-register": "^6.26.0",
+    "chai": "^4.1.2",
+    "chai-as-promised": "^7.1.1",
+    "chai-bignumber": "^2.0.2",
+    "solc": "^0.4.24",
+    "truffle": "^4.1.8"
+  },
+  "dependencies": {
+    "openzeppelin-solidity": "1.10.0"
+  }
+}
