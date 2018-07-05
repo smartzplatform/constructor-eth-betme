@@ -10,6 +10,7 @@ contract BetMe {
 	uint256 public ArbiterFee;
 
 	uint256 public StateVersion;
+	uint256 private betAmount;
 
 	address public OwnerAddress;
 	address public ArbiterAddress;
@@ -40,11 +41,16 @@ contract BetMe {
 		_;
 	}
 
+	modifier whileBetNotMade() {
+		require(betAmount == 0);
+		_;
+	}
+
 	function getTime() public view returns (uint256) {
 		return now;
 	}
 
-	function setAssertionText(string _text) public onlyOwner increaseState {
+	function setAssertionText(string _text) public onlyOwner increaseState whileBetNotMade {
 		_setAssertionText(_text);
 	}
 
@@ -80,5 +86,13 @@ contract BetMe {
 		require(_addr != address(ArbiterAddress));
 		require(_addr != address(OwnerAddress));
 		ArbiterAddress = _addr;
+	}
+
+	function bet() public payable onlyOwner whileBetNotMade {
+		betAmount = msg.value;
+	}
+
+	function currentBet() public view returns (uint256){
+		return betAmount;
 	}
 }

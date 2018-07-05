@@ -203,3 +203,35 @@ contract('BetMe - constructor and setters', function(accounts) {
 	});
 });
 
+contract('BetMe - making bets', function(accounts) {
+	const acc = {anyone: accounts[0], owner: accounts[1], opponent: accounts[2], arbiter: accounts[3]};
+
+	beforeEach(async function () {
+		this.inst = await BetMe.new(...constructorArgs(), {from: acc.owner},);
+	});
+
+	it('should revert if any non-owner calls bet', async function() {
+		await expectThrow(this.inst.bet({from: acc.anyone, value: 0.5}));
+	});
+
+	it('should allow owner to make a bet', async function() {
+		const betAmount = web3.toWei('0.05');
+		await this.inst.bet({from: acc.owner, value: betAmount}).should.be.eventually.fulfilled;
+		await this.inst.currentBet({from: acc.anyone}).should.be.eventually.bignumber.equal(betAmount);
+	});
+
+	it('should allow make a bet only once', async function() {
+		const betAmount = web3.toWei('0.05');
+		await this.inst.bet({from: acc.owner, value: betAmount}).should.be.eventually.fulfilled;
+		await expectThrow(this.inst.bet({from: acc.owner, value: betAmount}));
+	});
+
+	it('should not allow set assertion text after bet is made', async function() {
+		const betAmount = web3.toWei('0.05');
+		await this.inst.bet({from: acc.owner, value: betAmount}).should.be.eventually.fulfilled;
+		const newAssertion = "square has four corners";
+		await expectThrow(this.inst.setAssertionText(newAssertion, {from: acc.owner}));
+	});
+
+});
+
