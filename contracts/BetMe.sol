@@ -1,10 +1,17 @@
 pragma solidity ^0.4.24;
 
+import "../node_modules/openzeppelin-solidity/contracts/math/SafeMath.sol";
+
 contract BetMe {
+	using SafeMath for uint256;
 
 	string public Assertion;
 	uint256 public Deadline;
 	uint256 public ArbiterFee;
+
+	uint256 public StateVersion;
+
+	address public OwnerAddress;
 	address public ArbiterAddress;
 	address public OpponentAddress;
 
@@ -15,16 +22,63 @@ contract BetMe {
 		address _arbiterAddr,
 		address _opponentAddr
 	) public {
-		Assertion       = _assertion;
-		Deadline        = _deadline;
-		ArbiterFee      = _fee;
+		OwnerAddress = msg.sender;
+		_setAssertionText(_assertion);
+		_setDeadline(_deadline);
+		_setArbiterFee(_fee);
 		ArbiterAddress  = _arbiterAddr;
 		OpponentAddress = _opponentAddr;
 	}
 
+	modifier onlyOwner() {
+		require(msg.sender == OwnerAddress);
+		_;
+	}
 
-	function getDate() public view returns (uint256) {
+	modifier increaseState() {
+		StateVersion = StateVersion.add(1);
+		_;
+	}
+
+	function getTime() public view returns (uint256) {
 		return now;
 	}
 
+	function setAssertionText(string _text) public onlyOwner increaseState {
+		_setAssertionText(_text);
+	}
+
+	function _setAssertionText(string _text) internal {
+		require(bytes(_text).length > 0);
+		Assertion = _text;
+	}
+
+	function setDeadline(uint256 _timestamp) public onlyOwner increaseState {
+		_setDeadline(_timestamp);
+	}
+
+	function _setDeadline(uint256 _timestamp) internal {
+		require(_timestamp > getTime());
+		Deadline = _timestamp;
+	}
+
+	function setArbiterFee(uint256 _percent) public onlyOwner increaseState {
+		_setArbiterFee(_percent);
+	}
+
+	function _setArbiterFee(uint256 _percent) internal {
+		require(_percent < 100e18); // 100.0% float as integer with decimal=18
+		ArbiterFee      = _percent;
+	}
+
+	function setOpponentAddress(address _addr) public onlyOwner increaseState {
+		require(_addr != address(OpponentAddress));
+		OpponentAddress = _addr;
+	}
+
+	function setArbiterAddress(address _addr) public onlyOwner increaseState {
+		require(_addr != address(ArbiterAddress));
+		require(_addr != address(OwnerAddress));
+		ArbiterAddress = _addr;
+	}
 }
