@@ -8,6 +8,7 @@ contract BetMe {
 	string public Assertion;
 	uint256 public Deadline;
 	uint256 public ArbiterFee;
+	uint256 public ArbiterPenaltyAmount;
 
 	uint256 public StateVersion;
 	uint256 private betAmount;
@@ -15,6 +16,8 @@ contract BetMe {
 	address public OwnerAddress;
 	address public ArbiterAddress;
 	address public OpponentAddress;
+
+	bool public IsArbiterAddressConfirmed;
 
 	constructor(
 		string  _assertion,
@@ -36,6 +39,12 @@ contract BetMe {
 		_;
 	}
 
+	modifier onlyArbiterCanddate() {
+		require(!IsArbiterAddressConfirmed);
+		require(msg.sender == ArbiterAddress);
+		_;
+	}
+
 	modifier increaseState() {
 		StateVersion = StateVersion.add(1);
 		_;
@@ -43,6 +52,16 @@ contract BetMe {
 
 	modifier whileBetNotMade() {
 		require(betAmount == 0);
+		_;
+	}
+
+	modifier requireOwnerBetIsMade() {
+		require(betAmount != 0);
+		_;
+	}
+
+	modifier requireArbiterNotConfirmed() {
+		require(!IsArbiterAddressConfirmed);
 		_;
 	}
 
@@ -68,7 +87,7 @@ contract BetMe {
 		Deadline = _timestamp;
 	}
 
-	function setArbiterFee(uint256 _percent) public onlyOwner increaseState {
+	function setArbiterFee(uint256 _percent) public onlyOwner requireArbiterNotConfirmed increaseState {
 		_setArbiterFee(_percent);
 	}
 
@@ -82,7 +101,7 @@ contract BetMe {
 		OpponentAddress = _addr;
 	}
 
-	function setArbiterAddress(address _addr) public onlyOwner increaseState {
+	function setArbiterAddress(address _addr) public onlyOwner requireArbiterNotConfirmed increaseState {
 		require(_addr != address(ArbiterAddress));
 		require(_addr != address(OwnerAddress));
 		ArbiterAddress = _addr;
@@ -95,4 +114,18 @@ contract BetMe {
 	function currentBet() public view returns (uint256){
 		return betAmount;
 	}
+
+	function setArbiterPenaltyAmount(uint256 _amount) public onlyOwner requireArbiterNotConfirmed increaseState {
+		require(_amount != ArbiterPenaltyAmount);
+		ArbiterPenaltyAmount = _amount;
+	}
+
+	function agreeToBecameArbiter() public payable onlyArbiterCanddate requireOwnerBetIsMade {
+		require(ArbiterAddress != address(0));
+		IsArbiterAddressConfirmed = true;
+	}
+
+	//function IsArbiterAddressConfirmed() public view returns (bool) {
+	//	return false;
+	//}
 }
