@@ -290,7 +290,8 @@ contract('BetMe - choosing arbiter', function(accounts) {
 		const penaltyAmount = web3.toWei('0.03');
 		await this.inst.setArbiterPenaltyAmount(penaltyAmount, {from: acc.owner}).should.eventually.be.fulfilled;
 
-		await expectThrow(this.inst.agreeToBecameArbiter({from: acc.arbiter, value: penaltyAmount}));
+		const agreedStateVersion = await this.inst.StateVersion();
+		await expectThrow(this.inst.agreeToBecameArbiter(agreedStateVersion, {from: acc.arbiter, value: penaltyAmount}));
 	});
 
 	it('should not allow to became arbiter before owner bet is made', async function() {
@@ -298,7 +299,8 @@ contract('BetMe - choosing arbiter', function(accounts) {
 		await this.inst.setArbiterPenaltyAmount(penaltyAmount, {from: acc.owner}).should.eventually.be.fulfilled;
 		await this.inst.setArbiterAddress(acc.arbiter, {from: acc.owner}).should.eventually.be.fulfilled;
 
-		await expectThrow(this.inst.agreeToBecameArbiter({from: acc.arbiter, value: penaltyAmount}));
+		const agreedStateVersion = await this.inst.StateVersion();
+		await expectThrow(this.inst.agreeToBecameArbiter(agreedStateVersion, {from: acc.arbiter, value: penaltyAmount}));
 	});
 
 	it('should not allow non-arbiter-candidate to became an arbiter', async function() {
@@ -308,7 +310,8 @@ contract('BetMe - choosing arbiter', function(accounts) {
 		await this.inst.setArbiterPenaltyAmount(penaltyAmount, {from: acc.owner}).should.eventually.be.fulfilled;
 		await this.inst.setArbiterAddress(acc.arbiter, {from: acc.owner}).should.eventually.be.fulfilled;
 
-		await expectThrow(this.inst.agreeToBecameArbiter({from: acc.anyone, value: penaltyAmount}));
+		const agreedStateVersion = await this.inst.StateVersion();
+		await expectThrow(this.inst.agreeToBecameArbiter(agreedStateVersion, {from: acc.anyone, value: penaltyAmount}));
 	});
 
 	it('should allow arbiter candidate to became an arbiter', async function() {
@@ -318,9 +321,22 @@ contract('BetMe - choosing arbiter', function(accounts) {
 		await this.inst.setArbiterPenaltyAmount(penaltyAmount, {from: acc.owner}).should.eventually.be.fulfilled;
 		await this.inst.setArbiterAddress(acc.arbiter, {from: acc.owner}).should.eventually.be.fulfilled;
 		await this.inst.IsArbiterAddressConfirmed({from: acc.owner}).should.eventually.be.equal(false);
+		const agreedStateVersion = await this.inst.StateVersion();
 
-		await this.inst.agreeToBecameArbiter({from: acc.arbiter, value: penaltyAmount}).should.eventually.be.fulfilled;
+		await this.inst.agreeToBecameArbiter(agreedStateVersion, {from: acc.arbiter, value: penaltyAmount}).should.eventually.be.fulfilled;
 		await this.inst.IsArbiterAddressConfirmed({from: acc.owner}).should.eventually.be.equal(true);
+	});
+
+	it('should not allow to became an arbiter if state has changed', async function() {
+		const betAmount = web3.toWei('0.5');
+		await this.inst.bet({from: acc.owner, value: betAmount}).should.be.eventually.fulfilled;
+		const penaltyAmount = web3.toWei('0.03');
+		await this.inst.setArbiterPenaltyAmount(penaltyAmount, {from: acc.owner}).should.eventually.be.fulfilled;
+		await this.inst.setArbiterAddress(acc.arbiter, {from: acc.owner}).should.eventually.be.fulfilled;
+		const agreedStateVersion = await this.inst.StateVersion();
+		await this.inst.setArbiterPenaltyAmount(web3.toWei('0'), {from: acc.owner}).should.eventually.be.fulfilled;
+
+		await expectThrow(this.inst.agreeToBecameArbiter(agreedStateVersion, {from: acc.arbiter, value: penaltyAmount}));
 	});
 
 	it('should not allow arbiter candidate to became an arbiter twice', async function() {
@@ -329,43 +345,66 @@ contract('BetMe - choosing arbiter', function(accounts) {
 		const penaltyAmount = web3.toWei('0.03');
 		await this.inst.setArbiterPenaltyAmount(penaltyAmount, {from: acc.owner}).should.eventually.be.fulfilled;
 		await this.inst.setArbiterAddress(acc.arbiter, {from: acc.owner}).should.eventually.be.fulfilled;
-		await this.inst.agreeToBecameArbiter({from: acc.arbiter, value: penaltyAmount}).should.eventually.be.fulfilled;
+		const agreedStateVersion = await this.inst.StateVersion();
+		await this.inst.agreeToBecameArbiter(agreedStateVersion, {from: acc.arbiter, value: penaltyAmount}).should.eventually.be.fulfilled;
 
-		await expectThrow(this.inst.agreeToBecameArbiter({from: acc.arbiter, value: penaltyAmount}));
+		await expectThrow(this.inst.agreeToBecameArbiter(agreedStateVersion, {from: acc.arbiter, value: penaltyAmount}));
 	});
 
-	it('should not allow to change arbiter address after arbiter is confirmed', async function() {
+	async function preconditionArbiterIsChoosenAndAgree(inst) {
 		const betAmount = web3.toWei('0.5');
-		await this.inst.bet({from: acc.owner, value: betAmount}).should.be.eventually.fulfilled;
+		await inst.bet({from: acc.owner, value: betAmount}).should.be.eventually.fulfilled;
 		const penaltyAmount = web3.toWei('0.03');
-		await this.inst.setArbiterPenaltyAmount(penaltyAmount, {from: acc.owner}).should.eventually.be.fulfilled;
-		await this.inst.setArbiterAddress(acc.arbiter, {from: acc.owner}).should.eventually.be.fulfilled;
-		await this.inst.agreeToBecameArbiter({from: acc.arbiter, value: penaltyAmount}).should.eventually.be.fulfilled;
+		await inst.setArbiterPenaltyAmount(penaltyAmount, {from: acc.owner}).should.eventually.be.fulfilled;
+		await inst.setArbiterAddress(acc.arbiter, {from: acc.owner}).should.eventually.be.fulfilled;
+		const agreedStateVersion = await inst.StateVersion();
+		await inst.agreeToBecameArbiter(agreedStateVersion, {from: acc.arbiter, value: penaltyAmount}).should.eventually.be.fulfilled;
+	}
+
+	it('should not allow to change arbiter address after arbiter is confirmed', async function() {
+		await preconditionArbiterIsChoosenAndAgree(this.inst);
 
 		await expectThrow(this.inst.setArbiterAddress(acc.anyone, {from: acc.owner}));
 	});
 
 	it('should not allow to change arbiter penalty amount after arbiter is confirmed', async function() {
-		const betAmount = web3.toWei('0.5');
-		await this.inst.bet({from: acc.owner, value: betAmount}).should.be.eventually.fulfilled;
-		const penaltyAmount = web3.toWei('0.03');
-		await this.inst.setArbiterPenaltyAmount(penaltyAmount, {from: acc.owner}).should.eventually.be.fulfilled;
-		await this.inst.setArbiterAddress(acc.arbiter, {from: acc.owner}).should.eventually.be.fulfilled;
-		await this.inst.agreeToBecameArbiter({from: acc.arbiter, value: penaltyAmount}).should.eventually.be.fulfilled;
+		await preconditionArbiterIsChoosenAndAgree(this.inst);
 
-		await expectThrow(this.inst.setArbiterPenaltyAmount(penaltyAmount+1, {from: acc.owner}));
+		const newPenaltyAmount = (await this.inst.ArbiterPenaltyAmount()) + 1;
+		await expectThrow(this.inst.setArbiterPenaltyAmount(newPenaltyAmount, {from: acc.owner}));
 	});
 
 	it('should not allow to change arbiter fee percent after arbiter is confirmed', async function() {
+		await preconditionArbiterIsChoosenAndAgree(this.inst);
+
+		const fee = web3.toWei('10.0'); // 10%
+		await expectThrow(this.inst.setArbiterFee(fee, {from: acc.owner}));
+	});
+
+	it('should not allow non-arbiter to call arbiterSelfRetreat', async function() {
+		await preconditionArbiterIsChoosenAndAgree(this.inst);
+		await expectThrow(this.inst.arbiterSelfRetreat({from: acc.anyone}));
+	});
+
+	it('should not allow owner to call arbiterSelfRetreat', async function() {
+		await preconditionArbiterIsChoosenAndAgree(this.inst);
+		await expectThrow(this.inst.arbiterSelfRetreat({from: acc.anyone}));
+	});
+
+	it('should arbiter to retreat before opponnet accepted bet', async function() {
+		await preconditionArbiterIsChoosenAndAgree(this.inst);
+		await this.inst.arbiterSelfRetreat({from: acc.arbiter}).should.be.eventually.fulfilled;
+		await this.inst.IsArbiterAddressConfirmed({from: acc.anyone}).should.be.eventually.false;
+	});
+
+	it('should not allow to retreat before agreed', async function() {
 		const betAmount = web3.toWei('0.5');
 		await this.inst.bet({from: acc.owner, value: betAmount}).should.be.eventually.fulfilled;
 		const penaltyAmount = web3.toWei('0.03');
 		await this.inst.setArbiterPenaltyAmount(penaltyAmount, {from: acc.owner}).should.eventually.be.fulfilled;
 		await this.inst.setArbiterAddress(acc.arbiter, {from: acc.owner}).should.eventually.be.fulfilled;
-		await this.inst.agreeToBecameArbiter({from: acc.arbiter, value: penaltyAmount}).should.eventually.be.fulfilled;
 
-		const fee = web3.toWei('10.0'); // 10%
-		await expectThrow(this.inst.setArbiterFee(fee, {from: acc.owner}));
+		await expectThrow(this.inst.arbiterSelfRetreat({from: acc.arbiter}));
 	});
 
 });

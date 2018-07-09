@@ -65,6 +65,11 @@ contract BetMe {
 		_;
 	}
 
+	modifier requireArbiterConfirmed() {
+		require(IsArbiterAddressConfirmed);
+		_;
+	}
+
 	function getTime() public view returns (uint256) {
 		return now;
 	}
@@ -120,12 +125,14 @@ contract BetMe {
 		ArbiterPenaltyAmount = _amount;
 	}
 
-	function agreeToBecameArbiter() public payable onlyArbiterCanddate requireOwnerBetIsMade {
+	function agreeToBecameArbiter(uint256 _agreedState) public payable onlyArbiterCanddate requireOwnerBetIsMade {
 		require(ArbiterAddress != address(0));
+		require(StateVersion == _agreedState);
 		IsArbiterAddressConfirmed = true;
 	}
 
-	//function IsArbiterAddressConfirmed() public view returns (bool) {
-	//	return false;
-	//}
+	function arbiterSelfRetreat() public requireArbiterConfirmed {
+		require(msg.sender == ArbiterAddress);
+		IsArbiterAddressConfirmed = false;
+	}
 }
