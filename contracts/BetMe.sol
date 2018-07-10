@@ -133,6 +133,11 @@ contract BetMe {
 
 	function arbiterSelfRetreat() public requireArbiterConfirmed {
 		require(msg.sender == ArbiterAddress);
+		uint256 _value = ArbiterPenaltyAmount;
 		IsArbiterAddressConfirmed = false;
+		ArbiterPenaltyAmount = 0;
+		if (_value > 0 ) {
+			ArbiterAddress.transfer(_value);
+		}
 	}
 }
