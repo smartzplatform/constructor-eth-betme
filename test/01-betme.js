@@ -45,6 +45,43 @@ async function assertBalanceDiff(callInfo, wantEtherDiff) {
 	etherAfter.sub(etherBefore).add(etherUsed).should.be.bignumber.equal(wantEtherDiff);
 }
 
+async function preconditionArbiterIsChoosenAndAgree(inst, acc, defaults) {
+	defaults = defaults == null ? {} : defaults;
+	if (! ('setPenaltyAmount' in defaults)) {defaults.setPenaltyAmount = true;};
+	const arbiterAddress = 'arbiterAddress' in defaults ? defaults.arbiterAddress : acc.arbiter;
+	const betAmount = 'betAmount' in defaults ? defaults.betAmount : web3.toWei('0.05');
+
+	await inst.bet({from: acc.owner, value: betAmount}).should.be.eventually.fulfilled;
+	const penaltyAmount = defaults.setPenaltyAmount ? ('penaltyAmount' in defaults ? defaults.penaltyAmount : web3.toWei('0.003')) : 0;
+	if (defaults.setPenaltyAmount) {
+		await inst.setArbiterPenaltyAmount(penaltyAmount, {from: acc.owner}).should.eventually.be.fulfilled;
+	}
+	await inst.setArbiterAddress(arbiterAddress, {from: acc.owner}).should.eventually.be.fulfilled;
+	const agreedStateVersion = await inst.StateVersion();
+	await inst.agreeToBecameArbiter(agreedStateVersion, {from: arbiterAddress, value: penaltyAmount}).should.eventually.be.fulfilled;
+}
+
+async function preconditionOpponentBetIsMade(inst, acc, defaults) {
+	defaults = defaults == null ? {} : defaults;
+	if (!('betAmount' in defaults)) {defaults.betAmount = web3.toWei('0.05');}
+	if (!('arbiterAddress' in defaults)) {defaults.arbiterAddress = acc.arbiter;}
+	if (!('opponentAddress' in defaults)) {defaults.opponentAddress = acc.opponent;}
+	if (!('presetOpponentAddress' in defaults)) {defaults.presetOpponentAddress = true;}
+
+	await preconditionArbiterIsChoosenAndAgree(inst, acc, defaults);
+	await inst.setOpponentAddress(acc.opponent, {from: acc.owner}).should.be.eventually.fulfilled;
+
+	const agreedStateVersion = await inst.StateVersion();
+	if (defaults.presetOpponentAddress) {
+		await inst.betAssertIsFalse(
+			agreedStateVersion, 
+			{from: defaults.opponentAddress, value: defaults.betAmount},
+		).should.be.eventually.fulfilled;
+	}
+
+	await inst.IsOpponentBetConfirmed({from: acc.anyone}).should.be.eventually.true;
+	await inst.OpponentAddress({from: acc.anyone}).should.be.eventually.equal(defaults.opponentAddress);
+}
 
 contract('BetMe - constructor and setters', function(accounts) {
 	const acc = {anyone: accounts[0], owner: accounts[1], opponent: accounts[2], arbiter: accounts[3]};
@@ -121,7 +158,7 @@ contract('BetMe - constructor and setters', function(accounts) {
 		await expectThrow(this.inst.setAssertionText("", {from: acc.owner}));
 	});
 
-	it('should not allow change Deadline text if not owner', async function() {
+	it('should not allow change Deadline if not owner', async function() {
 		await expectThrow(this.inst.setDeadline(daysInFutureTimestamp(15), {from: acc.anyone}));
 	});
 
@@ -364,55 +401,51 @@ contract('BetMe - choosing arbiter', function(accounts) {
 		await expectThrow(this.inst.agreeToBecameArbiter(agreedStateVersion, {from: acc.arbiter, value: penaltyAmount}));
 	});
 
-	async function preconditionArbiterIsChoosenAndAgree(inst, defaults) {
-		defaults = defaults == null ? {} : defaults;
-		if (! ('setPenaltyAmount' in defaults)) {defaults.setPenaltyAmount = true;};
-		const arbiterAddress = 'arbiterAddress' in defaults ? defaults.arbiterAddress : acc.arbiter;
-
-		const betAmount = web3.toWei('0.05');
-		await inst.bet({from: acc.owner, value: betAmount}).should.be.eventually.fulfilled;
-		const penaltyAmount = defaults.setPenaltyAmount ? ('penaltyAmount' in defaults ? defaults.penaltyAmount : web3.toWei('0.003')) : 0;
-		if (defaults.setPenaltyAmount) {
-			await inst.setArbiterPenaltyAmount(penaltyAmount, {from: acc.owner}).should.eventually.be.fulfilled;
-		}
-		await inst.setArbiterAddress(arbiterAddress, {from: acc.owner}).should.eventually.be.fulfilled;
-		const agreedStateVersion = await inst.StateVersion();
-		await inst.agreeToBecameArbiter(agreedStateVersion, {from: arbiterAddress, value: penaltyAmount}).should.eventually.be.fulfilled;
-	}
 
 	it('should not allow to change arbiter address after arbiter is confirmed', async function() {
-		await preconditionArbiterIsChoosenAndAgree(this.inst);
+		await preconditionArbiterIsChoosenAndAgree(this.inst, acc);
 
 		await expectThrow(this.inst.setArbiterAddress(acc.anyone, {from: acc.owner}));
 	});
 
 	it('should not allow to change arbiter penalty amount after arbiter is confirmed', async function() {
-		await preconditionArbiterIsChoosenAndAgree(this.inst);
+		await preconditionArbiterIsChoosenAndAgree(this.inst, acc);
 
 		const newPenaltyAmount = (await this.inst.ArbiterPenaltyAmount()) + 1;
 		await expectThrow(this.inst.setArbiterPenaltyAmount(newPenaltyAmount, {from: acc.owner}));
 	});
 
 	it('should not allow to change arbiter fee percent after arbiter is confirmed', async function() {
-		await preconditionArbiterIsChoosenAndAgree(this.inst);
+		await preconditionArbiterIsChoosenAndAgree(this.inst, acc);
 
 		const fee = web3.toWei('10.0'); // 10%
 		await expectThrow(this.inst.setArbiterFee(fee, {from: acc.owner}));
 	});
 
+	it('should not allow to change deadline after arbiter is agreed', async function() {
+		await preconditionArbiterIsChoosenAndAgree(this.inst, acc);
+		const newValue = daysInFutureTimestamp(15);
+		await expectThrow(this.inst.setDeadline(newValue, {from: acc.owner}));
+	});
+
+	it('should not allow to change assertion text after arbiter is agreed', async function() {
+		await preconditionArbiterIsChoosenAndAgree(this.inst, acc);
+		await expectThrow(this.inst.setAssertionText("some unique assertion text", {from: acc.owner}));
+	});
+
 	it('should not allow non-arbiter to call arbiterSelfRetreat', async function() {
-		await preconditionArbiterIsChoosenAndAgree(this.inst);
+		await preconditionArbiterIsChoosenAndAgree(this.inst, acc);
 		await expectThrow(this.inst.arbiterSelfRetreat({from: acc.anyone}));
 	});
 
 	it('should not allow owner to call arbiterSelfRetreat', async function() {
-		await preconditionArbiterIsChoosenAndAgree(this.inst);
+		await preconditionArbiterIsChoosenAndAgree(this.inst, acc);
 		await expectThrow(this.inst.arbiterSelfRetreat({from: acc.anyone}));
 	});
 
-	it('should allow arbiter to retreat before opponnet accepted bet and take penalty amount back', async function() {
+	it('should allow arbiter to retreat before opponent accepted bet and take penalty amount back', async function() {
 		const penaltyAmount = web3.toWei('0.04');
-		await preconditionArbiterIsChoosenAndAgree(this.inst,{penaltyAmount});
+		await preconditionArbiterIsChoosenAndAgree(this.inst, acc, {penaltyAmount});
 
 		const gasPrice = 10;
 		const arbiterRetreatCallInfo = {func: this.inst.arbiterSelfRetreat, args: [], address: acc.arbiter, gasPrice};
@@ -421,7 +454,7 @@ contract('BetMe - choosing arbiter', function(accounts) {
 	});
 
 	it('should allow arbiter to retreat when penalty amount is not set', async function() {
-		await preconditionArbiterIsChoosenAndAgree(this.inst, {setPenaltyAmount: false});
+		await preconditionArbiterIsChoosenAndAgree(this.inst, acc, {setPenaltyAmount: false});
 
 		const gasPrice = 10;
 		const arbiterRetreatCallInfo = {func: this.inst.arbiterSelfRetreat, args: [], address: acc.arbiter, gasPrice};
@@ -450,5 +483,128 @@ contract('BetMe - choosing arbiter', function(accounts) {
 		// Test
 		await expectThrow(arbiter.arbiterSelfRetreat({from: acc.arbiter}));
 	});
+});
 
+contract('BetMe - choosing opponent', function(accounts) {
+	const acc = {anyone: accounts[0], owner: accounts[1], opponent: accounts[2], arbiter: accounts[3]};
+
+	beforeEach(async function () {
+		this.inst = await BetMe.new(...constructorArgs(), {from: acc.owner},);
+	});
+
+	it('should allow owner to set opponent address even after arbiter is choosen', async function() {
+		await preconditionArbiterIsChoosenAndAgree(this.inst, acc);
+		await this.inst.setOpponentAddress(acc.opponent, {from: acc.owner}).should.be.eventually.fulfilled;
+	});
+
+	it('should allow anyone to became an opponent if owner not specified its address', async function() {
+		const betAmount = web3.toWei('0.001');
+		await preconditionArbiterIsChoosenAndAgree(this.inst, acc, {betAmount});
+		const agreedStateVersion = await this.inst.StateVersion();
+		await this.inst.IsOpponentBetConfirmed({from: acc.anyone}).should.be.eventually.false;
+		await this.inst.betAssertIsFalse(agreedStateVersion, {from: acc.anyone, value: betAmount}).should.be.eventually.fulfilled;
+		await this.inst.IsOpponentBetConfirmed({from: acc.anyone}).should.be.eventually.true;
+		await this.inst.OpponentAddress({from: acc.anyone}).should.be.eventually.equal(acc.anyone);
+	});
+
+	it('should not bet if opponent did not sent any ether or sent to much or to few', async function() {
+		const betAmount = web3.toWei('0.001');
+		await preconditionArbiterIsChoosenAndAgree(this.inst, acc, {betAmount});
+		const agreedStateVersion = await this.inst.StateVersion();
+		await expectThrow(this.inst.betAssertIsFalse(agreedStateVersion, {from: acc.owner}));
+		await expectThrow(this.inst.betAssertIsFalse(agreedStateVersion, {from: acc.owner, value: web3.toWei('0.000999')}));
+		await expectThrow(this.inst.betAssertIsFalse(agreedStateVersion, {from: acc.owner, value: web3.toWei('0.0011')}));
+	});
+
+	it('should not bet if opponent sent wrong state version number', async function() {
+		const betAmount = web3.toWei('0.001');
+		await preconditionArbiterIsChoosenAndAgree(this.inst, acc, {betAmount});
+		const agreedStateVersion = await this.inst.StateVersion();
+		await this.inst.setOpponentAddress(acc.opponent, {from: acc.owner}).should.be.eventually.fulfilled; // This changes state version
+
+		await expectThrow(this.inst.betAssertIsFalse(agreedStateVersion, {from: acc.owner, value: betAmount}));
+	});
+
+	it('should not allow opponent bet before owner bet', async function() {
+		const agreedStateVersion = await this.inst.StateVersion();
+		await expectThrow(this.inst.betAssertIsFalse(agreedStateVersion, {from: acc.owner, value: 0}));
+	});
+
+	it('should not allow opponent bet before arbiter is choosen and agreed', async function() {
+		const betAmount = web3.toWei('0.001');
+		await this.inst.bet({from: acc.owner, value: betAmount}).should.be.eventually.fulfilled;
+		await this.inst.setArbiterAddress(acc.arbiter, {from: acc.owner}).should.eventually.be.fulfilled;
+		const agreedStateVersion = await this.inst.StateVersion();
+
+		await expectThrow(this.inst.betAssertIsFalse(agreedStateVersion, {from: acc.owner, value: betAmount}));
+	});
+
+	it('should allow predefined opponent to bet', async function() {
+		const betAmount = web3.toWei('0.001');
+		await preconditionArbiterIsChoosenAndAgree(this.inst, acc, {betAmount});
+		await this.inst.setOpponentAddress(acc.opponent, {from: acc.owner}).should.be.eventually.fulfilled;
+		const agreedStateVersion = await this.inst.StateVersion();
+
+		await this.inst.betAssertIsFalse(agreedStateVersion, {from: acc.opponent, value: betAmount}).should.be.eventually.fulfilled;
+		await this.inst.IsOpponentBetConfirmed({from: acc.anyone}).should.be.eventually.true;
+		await this.inst.OpponentAddress({from: acc.anyone}).should.be.eventually.equal(acc.opponent);
+	});
+
+	it('should not allow anyone else to bet if have predefined opponent', async function() {
+		const betAmount = web3.toWei('0.001');
+		await preconditionArbiterIsChoosenAndAgree(this.inst, acc, {betAmount});
+		await this.inst.setOpponentAddress(acc.opponent, {from: acc.owner}).should.be.eventually.fulfilled;
+		const agreedStateVersion = await this.inst.StateVersion();
+
+		await expectThrow(this.inst.betAssertIsFalse(agreedStateVersion, {from: acc.anyone, value: betAmount}));
+	});
+
+	it('should not allow owner to bet as opponent', async function() {
+		const betAmount = web3.toWei('0.001');
+		await preconditionArbiterIsChoosenAndAgree(this.inst, acc, {betAmount});
+		const agreedStateVersion = await this.inst.StateVersion();
+		await this.inst.IsOpponentBetConfirmed({from: acc.anyone}).should.be.eventually.false;
+
+		await expectThrow(this.inst.betAssertIsFalse(agreedStateVersion, {from: acc.owner, value: betAmount}));
+	});
+
+	it('should not allow arbiter to bet as opponent', async function() {
+		const betAmount = web3.toWei('0.001');
+		await preconditionArbiterIsChoosenAndAgree(this.inst, acc, {betAmount});
+		const agreedStateVersion = await this.inst.StateVersion();
+		await this.inst.IsOpponentBetConfirmed({from: acc.anyone}).should.be.eventually.false;
+
+		await expectThrow(this.inst.betAssertIsFalse(agreedStateVersion, {from: acc.arbiter, value: betAmount}));
+	});
+
+	it('should not allow change opponent address after bet is made', async function() {
+		const betAmount = web3.toWei('0.001');
+		await preconditionOpponentBetIsMade(this.inst, acc, {betAmount});
+		await expectThrow(this.inst.setOpponentAddress(acc.anyone, {from: acc.owner}));
+	});
+
+	it('should not allow opponent bet twice', async function() {
+		const betAmount = web3.toWei('0.001');
+		await preconditionOpponentBetIsMade(this.inst, acc, {betAmount, opponentAddress: acc.opponent});
+		const agreedStateVersion = await this.inst.StateVersion();
+
+		await expectThrow(this.inst.betAssertIsFalse(agreedStateVersion, {from: acc.opponent, value: betAmount}));
+	});
+
+	it('should not allow arbiter to retreat after opponent bet is made', async function() {
+		const betAmount = web3.toWei('0.001');
+		await preconditionOpponentBetIsMade(this.inst, acc, {betAmount});
+		await expectThrow(this.inst.arbiterSelfRetreat({from: acc.arbiter}));
+	});
+
+	it('should not allow to change deadline after oponnet bet is made', async function() {
+		await preconditionOpponentBetIsMade(this.inst, acc);
+		const newValue = daysInFutureTimestamp(15);
+		await expectThrow(this.inst.setDeadline(newValue, {from: acc.owner}));
+	});
+
+	it('should not allow to change assertion text after opponent bet is made', async function() {
+		await preconditionOpponentBetIsMade(this.inst, acc);
+		await expectThrow(this.inst.setAssertionText("some unique assertion text", {from: acc.owner}));
+	});
 });

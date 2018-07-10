@@ -18,6 +18,7 @@ contract BetMe {
 	address public OpponentAddress;
 
 	bool public IsArbiterAddressConfirmed;
+	bool public IsOpponentBetConfirmed;
 
 	constructor(
 		string  _assertion,
@@ -39,7 +40,17 @@ contract BetMe {
 		_;
 	}
 
-	modifier onlyArbiterCanddate() {
+	modifier forbidOwner() {
+		require(msg.sender != OwnerAddress);
+		_;
+	}
+
+	modifier forbidArbiter() {
+		require(msg.sender != ArbiterAddress);
+		_;
+	}
+
+	modifier onlyArbiterCandidate() {
 		require(!IsArbiterAddressConfirmed);
 		require(msg.sender == ArbiterAddress);
 		_;
@@ -65,8 +76,23 @@ contract BetMe {
 		_;
 	}
 
+	modifier stateNumberMatches(uint256 _agreedState) {
+		require(StateVersion == _agreedState);
+		_;
+	}
+
 	modifier requireArbiterConfirmed() {
 		require(IsArbiterAddressConfirmed);
+		_;
+	}
+
+	modifier requireOpponentBetIsMade() {
+		require(IsOpponentBetConfirmed);
+		_;
+	}
+
+	modifier requireOpponentBetIsNotMade() {
+		require(!IsOpponentBetConfirmed);
 		_;
 	}
 
@@ -83,7 +109,7 @@ contract BetMe {
 		Assertion = _text;
 	}
 
-	function setDeadline(uint256 _timestamp) public onlyOwner increaseState {
+	function setDeadline(uint256 _timestamp) public onlyOwner increaseState requireArbiterNotConfirmed {
 		_setDeadline(_timestamp);
 	}
 
@@ -101,7 +127,11 @@ contract BetMe {
 		ArbiterFee      = _percent;
 	}
 
-	function setOpponentAddress(address _addr) public onlyOwner increaseState {
+	function setOpponentAddress(address _addr) public 
+		onlyOwner 
+		increaseState
+		requireOpponentBetIsNotMade
+	{
 		require(_addr != address(OpponentAddress));
 		OpponentAddress = _addr;
 	}
@@ -125,13 +155,16 @@ contract BetMe {
 		ArbiterPenaltyAmount = _amount;
 	}
 
-	function agreeToBecameArbiter(uint256 _agreedState) public payable onlyArbiterCanddate requireOwnerBetIsMade {
+	function agreeToBecameArbiter(uint256 _agreedState) public payable 
+		onlyArbiterCandidate
+		requireOwnerBetIsMade 
+		stateNumberMatches(_agreedState)
+	{
 		require(ArbiterAddress != address(0));
-		require(StateVersion == _agreedState);
 		IsArbiterAddressConfirmed = true;
 	}
 
-	function arbiterSelfRetreat() public requireArbiterConfirmed {
+	function arbiterSelfRetreat() public requireArbiterConfirmed requireOpponentBetIsNotMade {
 		require(msg.sender == ArbiterAddress);
 		uint256 _value = ArbiterPenaltyAmount;
 		IsArbiterAddressConfirmed = false;
@@ -139,5 +172,22 @@ contract BetMe {
 		if (_value > 0 ) {
 			ArbiterAddress.transfer(_value);
 		}
+	}
+
+	function betAssertIsFalse(uint256 _agreedState) public payable 
+		requireOwnerBetIsMade 
+		forbidOwner
+		requireArbiterConfirmed
+		forbidArbiter
+		stateNumberMatches(_agreedState) 
+		requireOpponentBetIsNotMade
+	{
+		require(msg.value == betAmount);
+		if (OpponentAddress == address(0)) {
+			OpponentAddress = msg.sender;
+		} else {
+			require(OpponentAddress == msg.sender);
+		}
+		IsOpponentBetConfirmed = true;
 	}
 }
