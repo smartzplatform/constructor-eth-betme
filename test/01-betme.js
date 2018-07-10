@@ -608,3 +608,188 @@ contract('BetMe - choosing opponent', function(accounts) {
 		await expectThrow(this.inst.setAssertionText("some unique assertion text", {from: acc.owner}));
 	});
 });
+
+contract('BetMe - bet resolve and withdrawal', function(accounts) {
+	const acc = {anyone: accounts[0], owner: accounts[1], opponent: accounts[2], arbiter: accounts[3]};
+
+	beforeEach(async function () {
+		this.inst = await BetMe.new(...constructorArgs(), {from: acc.owner},);
+	});
+
+	it('should allow an arbiter to deside assertion is true', async function() {
+		await preconditionOpponentBetIsMade(this.inst, acc);
+		await this.inst.ArbiterHasVoted({from: acc.arbiter}).should.be.eventually.false;
+		await this.inst.agreeAssertionTrue({from: acc.arbiter}).should.be.eventually.fulfilled;
+		await this.inst.ArbiterHasVoted({from: acc.arbiter}).should.be.eventually.true;
+	});
+
+	it('should flag that decision is made after call to agreeAssertionTrue', async function() {
+		await preconditionOpponentBetIsMade(this.inst, acc);
+		await this.inst.IsDecisionMade({from: acc.arbiter}).should.be.eventually.false;
+		await this.inst.agreeAssertionTrue({from: acc.arbiter}).should.be.eventually.fulfilled;
+		await this.inst.IsDecisionMade({from: acc.arbiter}).should.be.eventually.true;
+	});
+
+	it('should flag that assertion is considered true after call to agreeAssertionTrue', async function() {
+		await preconditionOpponentBetIsMade(this.inst, acc);
+		await this.inst.IsAssertionTrue({from: acc.arbiter}).should.be.eventually.false;
+		await this.inst.agreeAssertionTrue({from: acc.arbiter}).should.be.eventually.fulfilled;
+		await this.inst.IsAssertionTrue({from: acc.arbiter}).should.be.eventually.true;
+	});
+
+	it('should let arbiter to withdraw penalty amount after successful agreeAssertionTrue', async function() {
+		// FIXME: arbiter should withdraw penaltyAmount + fee
+		const gasPrice = 10;
+		const penaltyAmount = web3.toWei('0.002');
+		await preconditionOpponentBetIsMade(this.inst, acc, {penaltyAmount});
+		await this.inst.agreeAssertionTrue({from: acc.arbiter}).should.be.eventually.fulfilled;
+
+		const callInfo = {func: this.inst.withdraw, args: [], address: acc.arbiter, gasPrice};
+		await assertBalanceDiff(callInfo, penaltyAmount);
+	});
+
+	it('should let owner to withdraw double bet amount after successful agreeAssertionTrue', async function() {
+		const gasPrice = 10;
+		const betAmount = web3.toWei('0.003');
+		await preconditionOpponentBetIsMade(this.inst, acc, {betAmount});
+		await this.inst.agreeAssertionTrue({from: acc.arbiter}).should.be.eventually.fulfilled;
+
+		const callInfo = {func: this.inst.withdraw, args: [], address: acc.owner, gasPrice};
+		const wantWithdrawalAmount = (new web3.BigNumber(betAmount)).mul(2);
+		await assertBalanceDiff(callInfo, wantWithdrawalAmount);
+	});
+
+	it('should not allow owner to withdraw twice', async function() {
+		const betAmount = web3.toWei('0.001');
+		const penaltyAmount = web3.toWei('0.006'); // more then bet amount to ensure owner withdraw will not revert due to insufficient funds
+		await preconditionOpponentBetIsMade(this.inst, acc, {betAmount, penaltyAmount});
+		await this.inst.agreeAssertionTrue({from: acc.arbiter}).should.be.eventually.fulfilled;
+		await this.inst.withdraw({from: acc.owner}).should.be.eventually.fulfilled;
+		await expectThrow(this.inst.withdraw({from: acc.owner}));
+		await expectThrow(this.inst.withdraw({from: acc.owner})); // we test same call twice 
+	});
+
+	it('should not allow arbiter to withdraw twice', async function() {
+		const betAmount = web3.toWei('0.006');
+		const penaltyAmount = web3.toWei('0.001');
+		await preconditionOpponentBetIsMade(this.inst, acc, {betAmount, penaltyAmount});
+		await this.inst.agreeAssertionTrue({from: acc.arbiter}).should.be.eventually.fulfilled;
+		await this.inst.withdraw({from: acc.arbiter}).should.be.eventually.fulfilled;
+		await expectThrow(this.inst.withdraw({from: acc.arbiter}));
+		await expectThrow(this.inst.withdraw({from: acc.arbiter})); // we test same call twice 
+	});
+
+	it('should not allow an opponent to withdraw if assertion considered true', async function() {
+		await preconditionOpponentBetIsMade(this.inst, acc);
+		await this.inst.agreeAssertionTrue({from: acc.arbiter}).should.be.eventually.fulfilled;
+		await expectThrow(this.inst.withdraw({from: acc.opponent}));
+	});
+
+	it('should not allow owner to withdraw if assertion considered false', async function() {
+		await preconditionOpponentBetIsMade(this.inst, acc);
+		await this.inst.agreeAssertionFalse({from: acc.arbiter}).should.be.eventually.fulfilled;
+		await expectThrow(this.inst.withdraw({from: acc.owner}));
+	});
+
+	it('should not allow owner, opponent, or anyone to call agreeAssertionTrue', async function() {
+		await preconditionOpponentBetIsMade(this.inst, acc);
+		await expectThrow(this.inst.agreeAssertionTrue({from: acc.owner}));
+		await expectThrow(this.inst.agreeAssertionTrue({from: acc.opponent}));
+		await expectThrow(this.inst.agreeAssertionTrue({from: acc.anyone}));
+	});
+
+	it('should not allow an arbiter to deside assertion is true unless opponnet made his bet', async function() {
+		await preconditionArbiterIsChoosenAndAgree(this.inst, acc);
+		await expectThrow(this.inst.agreeAssertionTrue({from: acc.arbiter}));
+	});
+
+	it('should allow an arbiter to deside assertion is false', async function() {
+		await preconditionOpponentBetIsMade(this.inst, acc);
+		await this.inst.ArbiterHasVoted({from: acc.arbiter}).should.be.eventually.false;
+		await this.inst.agreeAssertionFalse({from: acc.arbiter}).should.be.eventually.fulfilled;
+		await this.inst.ArbiterHasVoted({from: acc.arbiter}).should.be.eventually.true;
+	});
+
+	it('should flag that decision is made after call to agreeAssertionFalse', async function() {
+		await preconditionOpponentBetIsMade(this.inst, acc);
+		await this.inst.IsDecisionMade({from: acc.arbiter}).should.be.eventually.false;
+		await this.inst.agreeAssertionFalse({from: acc.arbiter}).should.be.eventually.fulfilled;
+		await this.inst.IsDecisionMade({from: acc.arbiter}).should.be.eventually.true;
+	});
+
+	it('should flag that assertion is considered false before and after call to agreeAssertionFalse', async function() {
+		await preconditionOpponentBetIsMade(this.inst, acc);
+		await this.inst.IsAssertionTrue({from: acc.arbiter}).should.be.eventually.false;
+		await this.inst.agreeAssertionFalse({from: acc.arbiter}).should.be.eventually.fulfilled;
+		await this.inst.IsAssertionTrue({from: acc.arbiter}).should.be.eventually.false;
+	});
+
+	it('should not allow owner,opponent, or anyone else to call agreeAssertionFalse', async function() {
+		await preconditionOpponentBetIsMade(this.inst, acc);
+		await expectThrow(this.inst.agreeAssertionFalse({from: acc.owner}));
+		await expectThrow(this.inst.agreeAssertionFalse({from: acc.opponent}));
+		await expectThrow(this.inst.agreeAssertionFalse({from: acc.anyone}));
+	});
+
+	it('should not allow an arbiter to call agreeAssertionFalse unless opponnet made his bet', async function() {
+		await preconditionArbiterIsChoosenAndAgree(this.inst, acc);
+		await expectThrow(this.inst.agreeAssertionFalse({from: acc.arbiter}));
+	});
+
+	it('should not allow an arbiter to call agreeAssertionFalse twice', async function() {
+		await preconditionOpponentBetIsMade(this.inst, acc);
+		await this.inst.agreeAssertionFalse({from: acc.arbiter}).should.eventually.be.fulfilled;
+		await expectThrow(this.inst.agreeAssertionFalse({from: acc.arbiter}));
+	});
+
+	it('should not allow an arbiter to call agreeAssertionTrue twice', async function() {
+		await preconditionOpponentBetIsMade(this.inst, acc);
+		await this.inst.agreeAssertionTrue({from: acc.arbiter}).should.eventually.be.fulfilled;
+		await expectThrow(this.inst.agreeAssertionTrue({from: acc.arbiter}));
+	});
+
+	it('should not allow an arbiter to call agreeAssertionTrue after agreeAssertionFalse', async function() {
+		await preconditionOpponentBetIsMade(this.inst, acc);
+		await this.inst.agreeAssertionFalse({from: acc.arbiter}).should.eventually.be.fulfilled;
+		await expectThrow(this.inst.agreeAssertionTrue({from: acc.arbiter}));
+	});
+
+	it('should not allow an arbiter to call agreeAssertionFalse after agreeAssertionTrue', async function() {
+		await preconditionOpponentBetIsMade(this.inst, acc);
+		await this.inst.agreeAssertionTrue({from: acc.arbiter}).should.eventually.be.fulfilled;
+		await expectThrow(this.inst.agreeAssertionFalse({from: acc.arbiter}));
+	});
+
+	it('should allow an arbiter to deside assertion is unresolvable', async function() {
+		await preconditionOpponentBetIsMade(this.inst, acc);
+		await this.inst.ArbiterHasVoted({from: acc.arbiter}).should.be.eventually.false;
+		await this.inst.agreeAssertionUnresolvable({from: acc.arbiter}).should.be.eventually.fulfilled;
+		await this.inst.ArbiterHasVoted({from: acc.arbiter}).should.be.eventually.true;
+	});
+
+	it('should flag decision is not made if arbiter voted with agreeAssertionUnresolvable', async function() {
+		await preconditionOpponentBetIsMade(this.inst, acc);
+		await this.inst.agreeAssertionUnresolvable({from: acc.arbiter}).should.be.eventually.fulfilled;
+		await this.inst.IsDecisionMade({from: acc.arbiter}).should.be.eventually.false;
+		await this.inst.IsAssertionTrue({from: acc.arbiter}).should.be.eventually.false;
+	});
+
+	it('should not allow owner, opponent, or anyone to call agreeAssertionUnresolvable', async function() {
+		await preconditionOpponentBetIsMade(this.inst, acc);
+		await expectThrow(this.inst.agreeAssertionUnresolvable({from: acc.owner}));
+		await expectThrow(this.inst.agreeAssertionUnresolvable({from: acc.opponent}));
+		await expectThrow(this.inst.agreeAssertionUnresolvable({from: acc.anyone}));
+	});
+
+	it('should not allow to call agreeAssertionUnresolvable twice', async function() {
+		await preconditionOpponentBetIsMade(this.inst, acc);
+		await this.inst.agreeAssertionUnresolvable({from: acc.arbiter}).should.be.eventually.fulfilled;
+		await expectThrow(this.inst.agreeAssertionUnresolvable({from: acc.arbiter}));
+	});
+
+	it('should not allow to call agreeAssertionUnresolvable unless opponent made his bet', async function() {
+		await preconditionArbiterIsChoosenAndAgree(this.inst, acc);
+		await expectThrow(this.inst.agreeAssertionUnresolvable({from: acc.arbiter}));
+	});
+
+});

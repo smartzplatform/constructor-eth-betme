@@ -19,6 +19,11 @@ contract BetMe {
 
 	bool public IsArbiterAddressConfirmed;
 	bool public IsOpponentBetConfirmed;
+	bool public ArbiterHasVoted;
+	bool public IsDecisionMade;
+	bool public IsAssertionTrue;
+	bool public IsOwnerTransferMade;
+	bool public IsArbiterTransferMade;
 
 	constructor(
 		string  _assertion,
@@ -42,6 +47,13 @@ contract BetMe {
 
 	modifier forbidOwner() {
 		require(msg.sender != OwnerAddress);
+		_;
+	}
+
+	modifier onlyValidArbiterandNotVoted() {
+		require(msg.sender == ArbiterAddress);
+		require(IsArbiterAddressConfirmed);
+		require(!ArbiterHasVoted);
 		_;
 	}
 
@@ -189,5 +201,35 @@ contract BetMe {
 			require(OpponentAddress == msg.sender);
 		}
 		IsOpponentBetConfirmed = true;
+	}
+
+	function agreeAssertionTrue() public onlyValidArbiterandNotVoted requireOpponentBetIsMade {
+		ArbiterHasVoted = true;
+		IsDecisionMade = true;
+		IsAssertionTrue = true;
+	}
+
+	function agreeAssertionFalse() public onlyValidArbiterandNotVoted requireOpponentBetIsMade {
+		ArbiterHasVoted = true;
+		IsDecisionMade = true;
+	}
+
+	function agreeAssertionUnresolvable() public onlyValidArbiterandNotVoted requireOpponentBetIsMade {
+		ArbiterHasVoted = true;
+	}
+
+	function withdraw() public {
+		if (msg.sender == ArbiterAddress) {
+			require(!IsArbiterTransferMade);
+			IsArbiterTransferMade = true;
+			ArbiterAddress.transfer(ArbiterPenaltyAmount);
+		} else if (msg.sender == OwnerAddress) {
+			require(IsAssertionTrue);
+			require(!IsOwnerTransferMade);
+			IsOwnerTransferMade = true;
+			OwnerAddress.transfer(betAmount.mul(2));
+		} else {
+			revert();
+		}
 	}
 }
