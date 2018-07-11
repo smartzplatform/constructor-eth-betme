@@ -233,8 +233,16 @@ contract BetMe {
 		}
 	}
 
+	function ArbiterFeeAmountInEther() public view returns (uint256){
+		return betAmount.mul(ArbiterFee).div(1e20);
+	}
+
 	function ownerPayout() public view returns (uint256) {
-		return betAmount;
+		if (ArbiterHasVoted && IsDecisionMade) {
+			return (IsAssertionTrue ? betAmount.mul(2).sub(ArbiterFeeAmountInEther()) : 0);
+		} else {
+			return betAmount;
+		}
 	}
 
 	function arbiterPayout() public view returns (uint256 amount) {
@@ -242,7 +250,7 @@ contract BetMe {
 			return 0;
 		}
 		if (!ArbiterHasVoted || IsDecisionMade) {
-			amount = betAmount.mul(ArbiterFee).div(1e20);
+			amount = ArbiterFeeAmountInEther();
 		}
 		if (IsArbiterAddressConfirmed) {
 			amount = amount.add(ArbiterPenaltyAmount);

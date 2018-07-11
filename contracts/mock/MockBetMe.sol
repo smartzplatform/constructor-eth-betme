@@ -29,6 +29,5 @@ contract MockBetMe is BetMe {
 		_opponentAddr
 		)
 	{
-		OwnerAddress = msg.sender;
 	}
 }
