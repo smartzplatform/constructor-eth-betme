@@ -35,6 +35,54 @@ function constructorArgs(defaults) {
 	];
 }
 
+function newBetCase(inst, acc, opt) {
+	let obj = {inst, opt, acc};
+	obj.setArbiterFee = async function (_val) {
+		if ( _val != null ) {this.opt.feePercent = _val;}
+		await this.inst.setArbiterFee(this.opt.feePercent, {from: acc.owner}).should.eventually.be.fulfilled;
+	};
+	obj.bet = async function (_val) {
+		if (_val != null) {this.opt.betAmount = _val;}
+		await this.inst.bet({from: this.acc.owner, value: this.opt.betAmount}).should.eventually.be.fulfilled;
+	};
+	obj.setArbiterAddress = async function (_val) {
+		const arbiterAddress = _val == null ?	this.acc.arbiter : _val;
+		await this.inst.setArbiterAddress(arbiterAddress, {from: this.acc.owner}).should.eventually.be.fulfilled;
+	};
+	obj.setArbiterPenaltyAmount = async function (_val) {
+		if (_val != null) {this.opt.penaltyAmount = _val;}
+		await this.inst.setArbiterPenaltyAmount(this.opt.penaltyAmount, {from: this.acc.owner}).should.eventually.be.fulfilled;
+	};
+	obj.agreeToBecameArbiter = async function () {
+		const penaltyAmount = await this.inst.ArbiterPenaltyAmount({from: this.acc.anyone});
+		const arbiterAddress = await this.inst.ArbiterAddress({from: this.acc.anyone});
+		const agreedStateVersion = await this.inst.StateVersion({from: this.acc.anyone});
+		await this.inst.agreeToBecameArbiter(agreedStateVersion, {from: arbiterAddress, value: penaltyAmount}).should.eventually.be.fulfilled;
+	};
+	obj.betAssertIsFalse = async function () {
+		const betAmount = await this.inst.currentBet({from: this.acc.anyone});
+		const agreedStateVersion = await this.inst.StateVersion({from: this.acc.anyone});
+		await this.inst.betAssertIsFalse(agreedStateVersion, {from: this.acc.opponent, value: betAmount}).should.eventually.be.fulfilled;
+	};
+	obj.agreeAssertionTrue = async function () {
+		const arbiterAddress = await this.inst.ArbiterAddress({from: this.acc.anyone});
+		await this.inst.agreeAssertionTrue({from: arbiterAddress}).should.eventually.be.fulfilled;
+	};
+	obj.agreeAssertionFalse = async function () {
+		const arbiterAddress = await this.inst.ArbiterAddress({from: this.acc.anyone});
+		await this.inst.agreeAssertionFalse({from: arbiterAddress}).should.eventually.be.fulfilled;
+	};
+	obj.agreeAssertionUnresolvable = async function () {
+		const arbiterAddress = await this.inst.ArbiterAddress({from: this.acc.anyone});
+		await this.inst.agreeAssertionUnresolvable({from: arbiterAddress}).should.eventually.be.fulfilled;
+	};
+	obj.setTimeAfterDeadline = async function () {
+		const newValue = (await this.inst.Deadline()).add(3600);
+		await this.inst.setTime(newValue, {from: this.acc.owner}).should.eventually.be.fulfilled;
+	};
+	return obj;
+}
+
 async function assertBalanceDiff(callInfo, wantEtherDiff) {
 	const etherBefore = web3.eth.getBalance(callInfo.address);
 
@@ -610,54 +658,6 @@ contract('BetMe - choosing opponent', function(accounts) {
 	});
 });
 
-function newBetCase(inst, acc, opt) {
-	let obj = {inst, opt, acc};
-	obj.setArbiterFee = async function (_fee) {
-		const feePercent = _fee == null ?	opt.feePercent : _fee;
-		await this.inst.setArbiterFee(feePercent, {from: acc.owner}).should.eventually.be.fulfilled;
-	};
-	obj.bet = async function (_bet) {
-		if (_bet != null) {opt.betAmount = _bet;}
-		//const betAmount = _bet == null ?	opt.betAmount : _bet;
-		await this.inst.bet({from: acc.owner, value: opt.betAmount}).should.eventually.be.fulfilled;
-	};
-	obj.setArbiterAddress = async function (_val) {
-		const arbiterAddress = _val == null ?	acc.arbiter : _val;
-		await this.inst.setArbiterAddress(arbiterAddress, {from: acc.owner}).should.eventually.be.fulfilled;
-	};
-	obj.setArbiterPenaltyAmount = async function (_val) {
-		const penaltyAmount = _val == null ?	this.opt.penaltyAmount : _val;
-		await this.inst.setArbiterPenaltyAmount(penaltyAmount, {from: acc.owner}).should.eventually.be.fulfilled;
-	};
-	obj.agreeToBecameArbiter = async function () {
-		const penaltyAmount = await this.inst.ArbiterPenaltyAmount({from: acc.anyone});
-		const arbiterAddress = await this.inst.ArbiterAddress({from: acc.anyone});
-		const agreedStateVersion = await this.inst.StateVersion({from: acc.anyone});
-		await this.inst.agreeToBecameArbiter(agreedStateVersion, {from: arbiterAddress, value: penaltyAmount}).should.eventually.be.fulfilled;
-	};
-	obj.betAssertIsFalse = async function () {
-		const betAmount = await this.inst.currentBet({from: acc.anyone});
-		const agreedStateVersion = await this.inst.StateVersion({from: acc.anyone});
-		await this.inst.betAssertIsFalse(agreedStateVersion, {from: acc.opponent, value: betAmount}).should.eventually.be.fulfilled;
-	};
-	obj.agreeAssertionTrue = async function () {
-		const arbiterAddress = await this.inst.ArbiterAddress({from: acc.anyone});
-		await this.inst.agreeAssertionTrue({from: arbiterAddress}).should.eventually.be.fulfilled;
-	};
-	obj.agreeAssertionFalse = async function () {
-		const arbiterAddress = await this.inst.ArbiterAddress({from: acc.anyone});
-		await this.inst.agreeAssertionFalse({from: arbiterAddress}).should.eventually.be.fulfilled;
-	};
-	obj.agreeAssertionUnresolvable = async function () {
-		const arbiterAddress = await this.inst.ArbiterAddress({from: acc.anyone});
-		await this.inst.agreeAssertionUnresolvable({from: arbiterAddress}).should.eventually.be.fulfilled;
-	};
-	obj.setTimeAfterDeadline = async function () {
-		const newValue = (await this.inst.Deadline()).add(3600);
-		await this.inst.setTime(newValue, {from: acc.owner}).should.eventually.be.fulfilled;
-	};
-	return obj;
-}
 
 contract('BetMe - payout helpers', function(accounts) {
 	const acc = {anyone: accounts[0], owner: accounts[1], opponent: accounts[2], arbiter: accounts[3]};
