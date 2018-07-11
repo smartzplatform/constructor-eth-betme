@@ -232,4 +232,20 @@ contract BetMe {
 			revert();
 		}
 	}
+
+	function ownerPayout() public view returns (uint256) {
+		return betAmount;
+	}
+
+	function arbiterPayout() public view returns (uint256 amount) {
+		if ( getTime() > Deadline && !ArbiterHasVoted) {
+			return 0;
+		}
+		if (!ArbiterHasVoted || IsDecisionMade) {
+			amount = betAmount.mul(ArbiterFee).div(1e20);
+		}
+		if (IsArbiterAddressConfirmed) {
+			amount = amount.add(ArbiterPenaltyAmount);
+		}
+	}
 }
