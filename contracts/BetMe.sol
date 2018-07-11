@@ -108,6 +108,11 @@ contract BetMe {
 		_;
 	}
 
+	modifier notAfterDeadline() {
+		require(getTime() < Deadline);
+		_;
+	}
+
 	function getTime() public view returns (uint256) {
 		return now;
 	}
@@ -203,18 +208,30 @@ contract BetMe {
 		IsOpponentBetConfirmed = true;
 	}
 
-	function agreeAssertionTrue() public onlyValidArbiterandNotVoted requireOpponentBetIsMade {
+	function agreeAssertionTrue() public
+		onlyValidArbiterandNotVoted
+		requireOpponentBetIsMade
+		notAfterDeadline
+	{
 		ArbiterHasVoted = true;
 		IsDecisionMade = true;
 		IsAssertionTrue = true;
 	}
 
-	function agreeAssertionFalse() public onlyValidArbiterandNotVoted requireOpponentBetIsMade {
+	function agreeAssertionFalse() public
+		onlyValidArbiterandNotVoted
+		requireOpponentBetIsMade
+		notAfterDeadline
+	{
 		ArbiterHasVoted = true;
 		IsDecisionMade = true;
 	}
 
-	function agreeAssertionUnresolvable() public onlyValidArbiterandNotVoted requireOpponentBetIsMade {
+	function agreeAssertionUnresolvable() public
+		onlyValidArbiterandNotVoted
+		requireOpponentBetIsMade
+		notAfterDeadline
+	{
 		ArbiterHasVoted = true;
 	}
 

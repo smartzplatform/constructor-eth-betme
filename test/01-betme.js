@@ -950,7 +950,7 @@ contract('BetMe - bet resolve and withdrawal', function(accounts) {
 	const acc = {anyone: accounts[0], owner: accounts[1], opponent: accounts[2], arbiter: accounts[3]};
 
 	beforeEach(async function () {
-		this.inst = await BetMe.new(...constructorArgs(), {from: acc.owner},);
+		this.inst = await MockBetMe.new(...constructorArgs(), {from: acc.owner},);
 	});
 
 	it('should allow an arbiter to deside assertion is true', async function() {
@@ -1128,4 +1128,26 @@ contract('BetMe - bet resolve and withdrawal', function(accounts) {
 		await preconditionArbiterIsChoosenAndAgree(this.inst, acc);
 		await expectThrow(this.inst.agreeAssertionUnresolvable({from: acc.arbiter}));
 	});
+
+	it('should not allow an arbiter to vote true after deadline', async function() {
+		await preconditionOpponentBetIsMade(this.inst, acc);
+		const newTime = (await this.inst.Deadline()).add(3600);
+		await this.inst.setTime(newTime, {from: acc.owner}).should.eventually.be.fulfilled;
+		await expectThrow(this.inst.agreeAssertionTrue({from: acc.arbiter}));
+	});
+
+	it('should not allow an arbiter to vote false after deadline', async function() {
+		await preconditionOpponentBetIsMade(this.inst, acc);
+		const newTime = (await this.inst.Deadline()).add(3600);
+		await this.inst.setTime(newTime, {from: acc.owner}).should.eventually.be.fulfilled;
+		await expectThrow(this.inst.agreeAssertionFalse({from: acc.arbiter}));
+	});
+
+	it('should not allow an arbiter to vote unresolvable after deadline', async function() {
+		await preconditionOpponentBetIsMade(this.inst, acc);
+		const newTime = (await this.inst.Deadline()).add(3600);
+		await this.inst.setTime(newTime, {from: acc.owner}).should.eventually.be.fulfilled;
+		await expectThrow(this.inst.agreeAssertionUnresolvable({from: acc.arbiter}));
+	});
+
 });
