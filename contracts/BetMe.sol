@@ -237,18 +237,27 @@ contract BetMe {
 	}
 
 	function withdraw() public {
+		require(ArbiterHasVoted);
 		if (msg.sender == ArbiterAddress) {
-			require(!IsArbiterTransferMade);
-			IsArbiterTransferMade = true;
-			ArbiterAddress.transfer(ArbiterPenaltyAmount);
+			withdrawArbiter();
 		} else if (msg.sender == OwnerAddress) {
-			require(IsAssertionTrue);
-			require(!IsOwnerTransferMade);
-			IsOwnerTransferMade = true;
-			OwnerAddress.transfer(betAmount.mul(2));
+			withdrawOwner();
 		} else {
 			revert();
 		}
+	}
+
+	function withdrawArbiter() internal {
+			require(!IsArbiterTransferMade);
+			IsArbiterTransferMade = true;
+			ArbiterAddress.transfer(arbiterPayout());
+	}
+
+	function withdrawOwner() internal {
+			require(!IsDecisionMade || IsAssertionTrue);
+			require(!IsOwnerTransferMade);
+			IsOwnerTransferMade = true;
+			OwnerAddress.transfer(ownerPayout());
 	}
 
 	function ArbiterFeeAmountInEther() public view returns (uint256){

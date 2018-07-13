@@ -950,16 +950,29 @@ contract('BetMe - payout helpers', function(accounts) {
 		gotAmount.should.be.bignumber.equal(wantAmount);
 	});
 
-	it('ownerPayment should be equal to bet amount after opponent bet', async function() {
+	it('ownerPayment should be equal to bet amount after opponent bet if arbiter fee is zero', async function() {
 		const testCase = newBetCase(this.inst, acc, {
 			betAmount:     web3.toWei('55', 'finney'),
-			feePercent:    web3.toWei('10.0'),
+			feePercent:    web3.toWei('0'),
 			penaltyAmount: web3.toWei('20', 'finney'),
 		});
 		await testCase.preconditionOpponentBetIsMade();
 
 		const gotAmount = await this.inst.ownerPayout({from: acc.anyone});
 		const wantAmount = testCase.opt.betAmount;
+		gotAmount.should.be.bignumber.equal(wantAmount);
+	});
+
+	it('ownerPayment should be equal to bet amount after opponent bet if arbiter fee is non-zero', async function() {
+		const testCase = newBetCase(this.inst, acc, {
+			betAmount:     web3.toWei('55', 'finney'),
+			feePercent:    web3.toWei('10'),
+			penaltyAmount: web3.toWei('20', 'finney'),
+		});
+		await testCase.preconditionOpponentBetIsMade();
+
+		const gotAmount = await this.inst.ownerPayout({from: acc.anyone});
+		const wantAmount = web3.toWei('55', 'finney');
 		gotAmount.should.be.bignumber.equal(wantAmount);
 	});
 
@@ -1065,28 +1078,60 @@ contract('BetMe - bet resolve and withdrawal', function(accounts) {
 	});
 
 	it('should let arbiter to withdraw penalty amount after successful agreeAssertionTrue', async function() {
-		// FIXME: arbiter should withdraw penaltyAmount + fee
 		const gasPrice = 10;
-		const penaltyAmount = web3.toWei('20', 'finney');
-		const testCase = newBetCase(this.inst, acc, {penaltyAmount});
+		const testCase = newBetCase(this.inst, acc, {
+			betAmount:     web3.toWei('55', 'finney'),
+			feePercent:    web3.toWei('10.0'),
+			penaltyAmount: web3.toWei('20', 'finney'),
+		});
 		await testCase.preconditionOpponentBetIsMade();
 		await testCase.agreeAssertionTrue();
 
 		const callInfo = {func: this.inst.withdraw, args: [], address: acc.arbiter, gasPrice};
-		await assertBalanceDiff(callInfo, penaltyAmount);
+		const wantAmount = web3.toWei('25.5', 'finney');
+		await assertBalanceDiff(callInfo, wantAmount);
 	});
 
-	it('should let owner to withdraw double bet amount after successful agreeAssertionTrue', async function() {
-		// FIXME: substract arbiter fee
+	it('should not let arbiter to withdraw before he voted', async function() {
+		const testCase = newBetCase(this.inst, acc, {});
+		await testCase.preconditionOpponentBetIsMade();
+		await expectThrow(this.inst.withdraw({from: acc.arbiter}));
+	});
+
+	it('should let owner to withdraw double bet amount (minus arbiter fee) after successful agreeAssertionTrue', async function() {
 		const gasPrice = 10;
-		const betAmount = web3.toWei('30', 'finney');
-		const testCase = newBetCase(this.inst, acc, {betAmount});
+		const testCase = newBetCase(this.inst, acc, {
+			betAmount:     web3.toWei('55', 'finney'),
+			feePercent:    web3.toWei('10.0'),
+			penaltyAmount: web3.toWei('20', 'finney'),
+		});
 		await testCase.preconditionOpponentBetIsMade();
 		await testCase.agreeAssertionTrue();
 
 		const callInfo = {func: this.inst.withdraw, args: [], address: acc.owner, gasPrice};
-		const wantWithdrawalAmount = web3.toWei('60', 'finney'); // opponent bet + owner bet
+		const wantWithdrawalAmount = web3.toWei('104.5', 'finney'); // opponent_bet + owner_bet - (arbiter_fee) = 110 - 5.5
 		await assertBalanceDiff(callInfo, wantWithdrawalAmount);
+	});
+
+	it('should let owner to withdraw bet amount after successful agreeAssertionUnresolvable', async function() {
+		const gasPrice = 10;
+		const testCase = newBetCase(this.inst, acc, {
+			betAmount:     web3.toWei('55', 'finney'),
+			feePercent:    web3.toWei('10.0'),
+			penaltyAmount: web3.toWei('20', 'finney'),
+		});
+		await testCase.preconditionOpponentBetIsMade();
+		await testCase.agreeAssertionUnresolvable();
+
+		const callInfo = {func: this.inst.withdraw, args: [], address: acc.owner, gasPrice};
+		const wantWithdrawalAmount = testCase.opt.betAmount;
+		await assertBalanceDiff(callInfo, wantWithdrawalAmount);
+	});
+
+	it('should not let owner to withdraw before arbiter voted', async function() {
+		const testCase = newBetCase(this.inst, acc, {});
+		await testCase.preconditionOpponentBetIsMade();
+		await expectThrow(this.inst.withdraw({from: acc.owner}));
 	});
 
 	it('should not allow owner to withdraw twice', async function() {
