@@ -178,6 +178,7 @@ contract BetMe {
 		stateNumberMatches(_agreedState)
 	{
 		require(ArbiterAddress != address(0));
+		require(msg.value == ArbiterPenaltyAmount);
 		IsArbiterAddressConfirmed = true;
 	}
 
