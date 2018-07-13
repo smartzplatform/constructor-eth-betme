@@ -1068,6 +1068,72 @@ contract('BetMe - payout helpers', function(accounts) {
 		gotAmount.should.be.bignumber.equal(wantAmount);
 	});
 
+	it('opponentPayout should return zero before opponent address is set', async function() {
+		await this.inst.opponentPayout({from: acc.anyone}).should.eventually.be.bignumber.zero;
+	});
+
+	it('opponentPayout should return zero before owner bet', async function() {
+		const testCase = newBetCase(this.inst, acc, {});
+		await testCase.setOpponentAddress();
+		await this.inst.opponentPayout({from: acc.anyone}).should.eventually.be.bignumber.zero;
+	});
+
+	it('opponentPayout should return zero after owner bet but before arbiter agreed', async function() {
+		const testCase = newBetCase(this.inst, acc, {});
+		await testCase.setArbiterAddress();
+		await testCase.bet();
+		await this.inst.opponentPayout({from: acc.anyone}).should.eventually.be.bignumber.zero;
+	});
+
+	it('opponentPayout should return zero before opponent bet', async function() {
+		const testCase = newBetCase(this.inst, acc, {});
+		await testCase.preconditionArbiterIsChoosenAndAgree();
+		await this.inst.opponentPayout({from: acc.anyone}).should.eventually.be.bignumber.zero;
+	});
+
+	it('opponentPayout should return betAmount after opponent bet', async function() {
+		const betAmount = web3.toWei('2', 'finney')
+		const testCase = newBetCase(this.inst, acc, {betAmount});
+		await testCase.preconditionOpponentBetIsMade();
+		await this.inst.opponentPayout({from: acc.anyone}).should.eventually.be.bignumber.equal(betAmount);
+	});
+
+	it('opponentPayout should return zero after arbiter voted for true', async function() {
+		const betAmount = web3.toWei('2', 'finney')
+		const testCase = newBetCase(this.inst, acc, {betAmount});
+		await testCase.preconditionOpponentBetIsMade();
+		await testCase.agreeAssertionTrue();
+		await this.inst.opponentPayout({from: acc.anyone}).should.eventually.be.bignumber.equal(web3.toWei('0', 'finney'));
+	});
+
+	it('opponentPayout should return zero after arbiter voted for false', async function() {
+		const testCase = newBetCase(this.inst, acc, {
+			betAmount:     web3.toWei('55', 'finney'),
+			feePercent:    web3.toWei('10.0'),
+			penaltyAmount: web3.toWei('20', 'finney'),
+		});
+		await testCase.preconditionOpponentBetIsMade();
+		await testCase.agreeAssertionFalse();
+
+		const gotAmount = await this.inst.opponentPayout({from: acc.anyone});
+		const wantAmount = web3.toWei('104.5', 'finney');
+		gotAmount.should.be.bignumber.equal(wantAmount);
+	});
+
+	it('opponentPayout should return zero after arbiter voted for unresolvable', async function() {
+		const testCase = newBetCase(this.inst, acc, {
+			betAmount:     web3.toWei('55', 'finney'),
+			feePercent:    web3.toWei('10.0'),
+			penaltyAmount: web3.toWei('20', 'finney'),
+		});
+		await testCase.preconditionOpponentBetIsMade();
+		await testCase.agreeAssertionUnresolvable();
+
+		const gotAmount = await this.inst.opponentPayout({from: acc.anyone});
+		const wantAmount = web3.toWei('55', 'finney');
+		gotAmount.should.be.bignumber.equal(wantAmount);
+	});
+
 });
 
 contract('BetMe - bet resolve and withdrawal', function(accounts) {

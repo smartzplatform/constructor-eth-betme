@@ -283,4 +283,11 @@ contract BetMe {
 			amount = amount.add(ArbiterPenaltyAmount);
 		}
 	}
+
+	function opponentPayout() public view returns (uint256) {
+		if (ArbiterHasVoted && IsDecisionMade) {
+			return (IsAssertionTrue ? 0 : betAmount.mul(2).sub(ArbiterFeeAmountInEther()));
+		}
+		return IsOpponentBetConfirmed ? betAmount : 0;
+	}
 }
