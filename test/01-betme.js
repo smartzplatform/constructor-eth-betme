@@ -346,6 +346,30 @@ contract('BetMe - constructor and setters', function(accounts) {
 		await this.inst.setArbiterPenaltyAmount(web3.toWei('0', 'finney'), {from: acc.owner}).should.eventually.be.fulfilled;
 		await this.inst.StateVersion({from: acc.anyone}).should.eventually.be.bignumber.equal(2);
 	});
+
+	it('should not allow set new deadline after deadline if arbiter agreed', async function() {
+		this.inst = await MockBetMe.new(...constructorArgs(), {from: acc.owner},);
+		const testCase = newBetCase(this.inst, acc, {});
+		await testCase.preconditionArbiterIsChoosenAndAgree();
+		await testCase.setTimeAfterDeadline();
+
+		const newValue = (await this.inst.Deadline()).add(3600);
+		await expectThrow(this.inst.setDeadline(newValue, {from: acc.owner}));
+	});
+
+	it('should allow set new deadline after deadline before arbiter agreed', async function() {
+		this.inst = await MockBetMe.new(...constructorArgs(), {from: acc.owner},);
+		const testCase = newBetCase(this.inst, acc, {});
+		await testCase.setArbiterAddress();
+		await testCase.setArbiterFee();
+		await testCase.setArbiterPenaltyAmount();
+		await testCase.bet();
+		await testCase.setTimeAfterDeadline();
+
+		const newValue = (await this.inst.getTime()).add(1);
+		await this.inst.setDeadline(newValue, {from: acc.owner}).should.be.eventually.fulfilled;
+	});
+
 });
 
 contract('BetMe - owner bets', function(accounts) {
