@@ -24,6 +24,7 @@ contract BetMe {
 	bool public IsAssertionTrue;
 	bool public IsOwnerTransferMade;
 	bool public IsArbiterTransferMade;
+	bool public IsOpponentTransferMade;
 
 	constructor(
 		string  _assertion,
@@ -237,27 +238,36 @@ contract BetMe {
 	}
 
 	function withdraw() public {
-		require(ArbiterHasVoted);
+		require(ArbiterHasVoted || getTime() > Deadline);
 		if (msg.sender == ArbiterAddress) {
 			withdrawArbiter();
 		} else if (msg.sender == OwnerAddress) {
 			withdrawOwner();
+		} else if (msg.sender == OpponentAddress) {
+			withdrawOpponent();
 		} else {
 			revert();
 		}
 	}
 
 	function withdrawArbiter() internal {
-			require(!IsArbiterTransferMade);
-			IsArbiterTransferMade = true;
-			ArbiterAddress.transfer(arbiterPayout());
+		require(!IsArbiterTransferMade);
+		IsArbiterTransferMade = true;
+		ArbiterAddress.transfer(arbiterPayout());
 	}
 
 	function withdrawOwner() internal {
-			require(!IsDecisionMade || IsAssertionTrue);
-			require(!IsOwnerTransferMade);
-			IsOwnerTransferMade = true;
-			OwnerAddress.transfer(ownerPayout());
+		require(!IsDecisionMade || IsAssertionTrue);
+		require(!IsOwnerTransferMade);
+		IsOwnerTransferMade = true;
+		OwnerAddress.transfer(ownerPayout());
+	}
+
+	function withdrawOpponent() internal {
+		require((IsDecisionMade && !IsAssertionTrue) || (ArbiterHasVoted && !IsDecisionMade) || getTime() > Deadline);
+		require(!IsOpponentTransferMade);
+		IsOpponentTransferMade = true;
+		OpponentAddress.transfer(opponentPayout());
 	}
 
 	function ArbiterFeeAmountInEther() public view returns (uint256){
@@ -265,6 +275,9 @@ contract BetMe {
 	}
 
 	function ownerPayout() public view returns (uint256) {
+		if ( getTime() > Deadline && !ArbiterHasVoted) {
+			return betAmount.add(ArbiterPenaltyAmount.div(2));
+		}
 		if (ArbiterHasVoted && IsDecisionMade) {
 			return (IsAssertionTrue ? betAmount.mul(2).sub(ArbiterFeeAmountInEther()) : 0);
 		} else {
@@ -285,6 +298,9 @@ contract BetMe {
 	}
 
 	function opponentPayout() public view returns (uint256) {
+		if ( getTime() > Deadline && !ArbiterHasVoted) {
+			return betAmount.add(ArbiterPenaltyAmount.div(2));
+		}
 		if (ArbiterHasVoted && IsDecisionMade) {
 			return (IsAssertionTrue ? 0 : betAmount.mul(2).sub(ArbiterFeeAmountInEther()));
 		}

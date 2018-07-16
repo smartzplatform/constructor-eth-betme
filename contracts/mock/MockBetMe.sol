@@ -14,6 +14,8 @@ contract MockBetMe is BetMe {
 		 _time = _val;
 	}
 
+	function () public payable {}
+
 	constructor(
 		string  _assertion,
 		uint256 _deadline,
