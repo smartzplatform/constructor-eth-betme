@@ -161,6 +161,7 @@ contract BetMe {
 	}
 
 	function bet() public payable onlyOwner whileBetNotMade {
+		require(msg.value > 0);
 		betAmount = msg.value;
 	}
 

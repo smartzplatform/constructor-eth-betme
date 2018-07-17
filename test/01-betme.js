@@ -390,6 +390,11 @@ contract('BetMe - owner bets', function(accounts) {
 		await this.inst.currentBet({from: acc.anyone}).should.be.eventually.bignumber.equal(betAmount);
 	});
 
+	it('should revert if bet is zero', async function() {
+		await expectThrow(this.inst.bet({from: acc.owner, value: 0}));
+	});
+
+
 	it('should allow make a bet only once', async function() {
 		const betAmount = web3.toWei('5', 'finney');
 		await this.inst.bet({from: acc.owner, value: betAmount}).should.be.eventually.fulfilled;
