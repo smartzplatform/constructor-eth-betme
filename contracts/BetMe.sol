@@ -164,7 +164,7 @@ contract BetMe {
 		betAmount = msg.value;
 	}
 
-	function currentBet() public view returns (uint256){
+	function currentBet() public view returns (uint256) {
 		return betAmount;
 	}
 
@@ -264,8 +264,9 @@ contract BetMe {
 	}
 
 	function withdrawOpponent() internal {
-		require((IsDecisionMade && !IsAssertionTrue) || (ArbiterHasVoted && !IsDecisionMade) || getTime() > Deadline);
-		require(!IsOpponentTransferMade);
+		//require((IsDecisionMade && !IsAssertionTrue) || (ArbiterHasVoted && !IsDecisionMade) || getTime() > Deadline);
+		//require(!IsOpponentTransferMade);
+		require(IsOpponentTransferPending());
 		IsOpponentTransferMade = true;
 		OpponentAddress.transfer(opponentPayout());
 	}
@@ -298,12 +299,47 @@ contract BetMe {
 	}
 
 	function opponentPayout() public view returns (uint256) {
-		if ( getTime() > Deadline && !ArbiterHasVoted) {
+		if (getTime() > Deadline && !ArbiterHasVoted) {
 			return betAmount.add(ArbiterPenaltyAmount.div(2));
 		}
 		if (ArbiterHasVoted && IsDecisionMade) {
 			return (IsAssertionTrue ? 0 : betAmount.mul(2).sub(ArbiterFeeAmountInEther()));
 		}
 		return IsOpponentBetConfirmed ? betAmount : 0;
+	}
+
+
+	function IsContractDeleteForbidden() internal view returns (bool) {
+		if (getTime() > Deadline) { return false; }
+		if (ArbiterHasVoted) { return false; }
+		if (!IsOpponentBetConfirmed) { return false; }
+		return true;
+	}
+
+	function IsOpponentTransferPending() internal view returns (bool) {
+		if (IsOpponentTransferMade) return false;
+		if (!ArbiterHasVoted && getTime() > Deadline) { return true; }
+		if (ArbiterHasVoted && !IsAssertionTrue) { return true; }
+		return false;
+	}
+
+	function IsArbiterTransferPending() internal view returns (bool) {
+		if (!IsArbiterAddressConfirmed) return false;
+		if (IsArbiterTransferMade) return false;
+		if (getTime() > Deadline && !ArbiterHasVoted) return false;
+		return true;
+	}
+
+	function deleteContract() public onlyOwner {
+		require(!IsContractDeleteForbidden());
+		require(!IsOpponentTransferPending());
+		if (IsArbiterTransferPending()) {
+			uint256 amount = ArbiterPenaltyAmount;
+			if (ArbiterHasVoted && IsDecisionMade) {
+				amount = amount.add(ArbiterFeeAmountInEther());
+			}
+			if (amount > 0) ArbiterAddress.transfer(amount);
+		}
+		selfdestruct(OwnerAddress);
 	}
 }
