@@ -1612,6 +1612,8 @@ contract('BetMe - contractDelete', function(accounts) {
 		this.inst = await MockBetMe.new(...constructorArgs(), {from: acc.owner},);
 	});
 
+	const gasPrice = 10;
+
 	it('should revert if deleteContract called by non-owner at init stage', async function() {
 		const testCase = newBetCase(this.inst, acc, {});
 
@@ -1620,7 +1622,7 @@ contract('BetMe - contractDelete', function(accounts) {
 		await expectThrow(this.inst.deleteContract({from: acc.opponent}));
 	});
 
-	it('should revert if deleteContract called by non-owner while opponnet choose stage', async function() {
+	it('should revert if deleteContract called by non-owner while opponent choose stage', async function() {
 		const testCase = newBetCase(this.inst, acc, {});
 		await testCase.preconditionArbiterIsChoosenAndAgree();
 
@@ -1643,7 +1645,6 @@ contract('BetMe - contractDelete', function(accounts) {
 	});
 
 	it('should destroy contract and return bet to owner after call to deleteContract before arbiter agreed', async function() {
-		const gasPrice = 10;
 		const testCase = newBetCase(this.inst, acc, {});
 		await testCase.bet(web3.toWei('50', 'finney'));
 
@@ -1656,7 +1657,6 @@ contract('BetMe - contractDelete', function(accounts) {
 	});
 
 	it('deleteContract should transfer bet amount to owner if arbiter confirmed but no opponent and fee == penalty == 0', async function() {
-		const gasPrice = 10;
 		const testCase = newBetCase(this.inst, acc, {
 			betAmount: web3.toWei('50', 'finney'),
 			feePercent: web3.toWei('0'),
@@ -1673,7 +1673,6 @@ contract('BetMe - contractDelete', function(accounts) {
 	});
 
 	it('deleteContract should return penalty amount to arbiter and transfer rest to owner if arbiter confirmed but no opponent', async function() {
-		const gasPrice = 10;
 		const testCase = newBetCase(this.inst, acc, {
 			betAmount: web3.toWei('50', 'finney'),
 			penaltyAmount: web3.toWei('20', 'finney'),
@@ -1690,7 +1689,6 @@ contract('BetMe - contractDelete', function(accounts) {
 	});
 
 	it('deleteContract should return arbiterPayout to arbiter and transfer rest to owner if vote for true', async function() {
-		const gasPrice = 10;
 		const testCase = newBetCase(this.inst, acc, {
 			betAmount: web3.toWei('50', 'finney'),
 			feePercent: web3.toWei('10'),
@@ -1709,7 +1707,6 @@ contract('BetMe - contractDelete', function(accounts) {
 	});
 
 	it('deleteContract should return arbiter fee amount to arbiter and transfer rest to owner if vote for true and penalty amount is zero', async function() {
-		const gasPrice = 10;
 		const testCase = newBetCase(this.inst, acc, {
 			betAmount: web3.toWei('50', 'finney'),
 			feePercent: web3.toWei('10'),
@@ -1727,7 +1724,6 @@ contract('BetMe - contractDelete', function(accounts) {
 	});
 
 	it('deleteContract should return arbiterPayout to arbiter if vote for false and opponent took his money', async function() {
-		const gasPrice = 10;
 		const testCase = newBetCase(this.inst, acc, {
 			betAmount: web3.toWei('50', 'finney'),
 			feePercent: web3.toWei('10'),
@@ -1747,7 +1743,6 @@ contract('BetMe - contractDelete', function(accounts) {
 	});
 
 	it('deleteContract should return arbiter penalty to arbiter if vote for unresolvable and opponent took his money', async function() {
-		const gasPrice = 10;
 		const testCase = newBetCase(this.inst, acc, {
 			betAmount: web3.toWei('50', 'finney'),
 			feePercent: web3.toWei('10'),
@@ -1767,11 +1762,11 @@ contract('BetMe - contractDelete', function(accounts) {
 	});
 
 	it('deleteContract should transfer all to owner if arbiter confirmed but there is no opponent and penalty amount iz zero', async function() {
-		const gasPrice = 10;
 		const testCase = newBetCase(this.inst, acc, {
 			betAmount: web3.toWei('50', 'finney'),
 		});
 		await testCase.preconditionArbiterIsChoosenAndAgree({setPenaltyAmount: false});
+		await this.inst.ArbiterPenaltyAmount().should.be.eventually.bignumber.equal(0);
 
 		const expectedBalanceDiff = {
 			[acc.arbiter]:  0,
@@ -1789,8 +1784,26 @@ contract('BetMe - contractDelete', function(accounts) {
 		await expectThrow(this.inst.deleteContract({from: acc.owner}));
 	});
 
-	it('deleteContract should selfdestruct if arbiter has not voted after deadline and both opponnet and owner took their money', async function() {
-		const gasPrice = 10;
+	it('deleteContract should return arbiter penlty if there is no opponent after deadline', async function() {
+		const testCase = newBetCase(this.inst, acc, {
+			betAmount: web3.toWei('50', 'finney'),
+			penaltyAmount: web3.toWei('20', 'finney'),
+		});
+		await testCase.preconditionArbiterIsChoosenAndAgree();
+		await testCase.setTimeAfterDeadline();
+		await assertBalanceDiff({func: this.inst.withdraw, args: [], address: acc.owner, gasPrice}, web3.toWei('50', 'finney'));
+		
+		const expectedBalanceDiff = {
+			[acc.arbiter]: testCase.opt.penaltyAmount,
+			[acc.opponent]: 0,
+		};
+		const callInfo = {func: this.inst.deleteContract, args: [], address: acc.owner, gasPrice};
+		const wantWithdrawalAmount = 0;
+		await assertBalanceDiff(callInfo, wantWithdrawalAmount, expectedBalanceDiff);
+		await expectNoContract(this.inst.OwnerAddress({from: acc.anyone}));
+	});
+
+	it('deleteContract should selfdestruct if arbiter has not voted after deadline and both opponent and owner took their money', async function() {
 		const testCase = newBetCase(this.inst, acc, {});
 		await testCase.preconditionOpponentBetIsMade();
 		await testCase.setTimeAfterDeadline();
@@ -1804,8 +1817,7 @@ contract('BetMe - contractDelete', function(accounts) {
 		await expectNoContract(this.inst.OwnerAddress({from: acc.anyone}));
 	});
 
-	it('deleteContract should selfdestruct if arbiter has not voted after deadline and opponnet took his money', async function() {
-		const gasPrice = 10;
+	it('deleteContract should selfdestruct if arbiter has not voted after deadline and opponent took his money', async function() {
 		const testCase = newBetCase(this.inst, acc, {});
 		await testCase.preconditionOpponentBetIsMade();
 		await testCase.setTimeAfterDeadline();
@@ -1817,7 +1829,7 @@ contract('BetMe - contractDelete', function(accounts) {
 		await assertBalanceDiff(callInfo, wantWithdrawalAmount, expectedBalanceDiff);
 	});
 
-	it('deleteContract should revert if arbiter has not voted after deadline and opponnet money are not taken', async function() {
+	it('deleteContract should revert if arbiter has not voted after deadline and opponent money are not taken', async function() {
 		const testCase = newBetCase(this.inst, acc, {});
 		await testCase.preconditionOpponentBetIsMade();
 		await testCase.setTimeAfterDeadline();
@@ -1825,7 +1837,7 @@ contract('BetMe - contractDelete', function(accounts) {
 		await expectThrow(this.inst.deleteContract({from: acc.owner}));
 	});
 
-	it('deleteContract should revert if arbiter voted for false and opponnet money are not taken', async function() {
+	it('deleteContract should revert if arbiter voted for false and opponent money are not taken', async function() {
 		const testCase = newBetCase(this.inst, acc, {});
 		await testCase.preconditionOpponentBetIsMade();
 		await testCase.agreeAssertionFalse();
@@ -1833,7 +1845,7 @@ contract('BetMe - contractDelete', function(accounts) {
 		await expectThrow(this.inst.deleteContract({from: acc.owner}));
 	});
 
-	it('deleteContract should revert if arbiter voted for unresolvable and opponnet money are not taken', async function() {
+	it('deleteContract should revert if arbiter voted for unresolvable and opponent money are not taken', async function() {
 		const testCase = newBetCase(this.inst, acc, {});
 		await testCase.preconditionOpponentBetIsMade();
 		await testCase.agreeAssertionUnresolvable();
@@ -1842,7 +1854,6 @@ contract('BetMe - contractDelete', function(accounts) {
 	});
 
 	it('should destroy contract and return all ether to owner after call to deleteContract', async function() {
-		const gasPrice = 10;
 		const testCase = newBetCase(this.inst, acc, {});
 		await testCase.preconditionAssertTreueAndPayoutsMade();
 
@@ -1921,7 +1932,7 @@ contract('BetMe - bets in wei', function(accounts) {
 		await assertBalanceDiff(callInfoDelete, web3.toWei('1', 'wei'));
 	});
 
-	it('should divide penalty amount of 2 wei for opponnet and owner if arbiter failed to vote', async function() {
+	it('should divide penalty amount of 2 wei for opponent and owner if arbiter failed to vote', async function() {
 		const testCase = newBetCase(this.inst, acc, {
 			betAmount: web3.toWei('1', 'wei'),
 			penaltyAmount: web3.toWei('2', 'wei'),
@@ -1941,4 +1952,156 @@ contract('BetMe - bets in wei', function(accounts) {
 		const callInfoDelete = {func: this.inst.deleteContract, args: [], address: acc.owner, gasPrice};
 		await assertBalanceDiff(callInfoDelete, web3.toWei('0', 'wei'));
 	});
+});
+
+contract('BetMe - example expected flow', function(accounts) {
+	const acc = {anyone: accounts[0], owner: accounts[1], opponent: accounts[2], arbiter: accounts[3]};
+
+	const gasPrice = 10;
+
+	it('should successfully pass flow 1', async function() {
+		const inst = await BetMe.new(
+			"Gomer Simpson will win his poker game next sunday",  // Assertion text
+			daysInFutureTimestamp(10),                            // Deadline
+			web3.toWei('10'),                                     // arbiter fee percent
+			acc.arbiter,                                          // Arbiter address
+			acc.opponent,                                         // Opponent address
+			{from: acc.owner},
+		);
+		await inst.setArbiterPenaltyAmount(web3.toWei('200', 'finney'), {from: acc.owner}).should.be.eventually.fulfilled;
+		await inst.bet({from: acc.owner, value: web3.toWei('1000', 'finney')}).should.be.eventually.fulfilled;
+		const state1 = await inst.StateVersion();
+		await inst.agreeToBecameArbiter(state1, {from: acc.arbiter, value: web3.toWei('200', 'finney')}).should.be.eventually.fulfilled;
+		const state2 = await inst.StateVersion();
+		await inst.betAssertIsFalse(state2, {from: acc.opponent, value: web3.toWei('1000', 'finney')}).should.be.eventually.fulfilled;
+
+		await inst.agreeAssertionTrue({from: acc.arbiter}).should.be.eventually.fulfilled;
+
+		await assertBalanceDiff({func: inst.withdraw, args: [], address: acc.arbiter, gasPrice}, web3.toWei('300', 'finney'));
+		await expectThrow(inst.withdraw(), {from: acc.opponent});
+		await assertBalanceDiff({func: inst.withdraw, args: [], address: acc.owner, gasPrice}, web3.toWei('1900', 'finney'));
+
+		await assertBalanceDiff({func: inst.deleteContract, args: [], address: acc.owner, gasPrice}, web3.toWei('0', 'finney'));
+		await expectNoContract(inst.OwnerAddress({from: acc.anyone}));
+	});
+
+	it('should successfully pass flow 2', async function() {
+		const inst = await MockBetMe.new(
+			"Gomer Simpson will win his poker game next sunday",  // Assertion text
+			daysInFutureTimestamp(10),                            // Deadline
+			web3.toWei('10'),                                     // arbiter fee percent
+			acc.arbiter,                                          // Arbiter address
+			acc.opponent,                                         // Opponent address
+			{from: acc.owner},
+		);
+		await inst.setArbiterPenaltyAmount(web3.toWei('200', 'finney'), {from: acc.owner}).should.be.eventually.fulfilled;
+		await inst.bet({from: acc.owner, value: web3.toWei('1000', 'finney')}).should.be.eventually.fulfilled;
+		const state1 = await inst.StateVersion();
+		await inst.agreeToBecameArbiter(state1, {from: acc.arbiter, value: web3.toWei('200', 'finney')}).should.be.eventually.fulfilled;
+		const state2 = await inst.StateVersion();
+		await inst.betAssertIsFalse(state2, {from: acc.opponent, value: web3.toWei('1000', 'finney')}).should.be.eventually.fulfilled;
+
+		// Pretend deadline is reached before arbiter voted
+		await inst.setTime(daysInFutureTimestamp(11), {from: acc.owner}).should.be.eventually.fulfilled;
+
+		await expectThrow(inst.withdraw(), {from: acc.arbiter});
+		await assertBalanceDiff({func: inst.withdraw, args: [], address: acc.opponent, gasPrice}, web3.toWei('1100', 'finney'));
+		await assertBalanceDiff({func: inst.withdraw, args: [], address: acc.owner, gasPrice}, web3.toWei('1100', 'finney'));
+
+		await assertBalanceDiff({func: inst.deleteContract, args: [], address: acc.owner, gasPrice}, web3.toWei('0', 'finney'));
+		await expectNoContract(inst.OwnerAddress({from: acc.anyone}));
+	});
+
+	it('should successfully pass flow 3', async function() {
+		const inst = await MockBetMe.new(
+			"Gomer Simpson will win his poker game next sunday",  // Assertion text
+			daysInFutureTimestamp(10),                            // Deadline
+			web3.toWei('10'),                                     // arbiter fee percent
+			acc.arbiter,                                          // Arbiter address
+			acc.opponent,                                         // Opponent address
+			{from: acc.owner},
+		);
+		await inst.bet({from: acc.owner, value: web3.toWei('1000', 'finney')}).should.be.eventually.fulfilled;
+		const state1 = await inst.StateVersion();
+		await inst.agreeToBecameArbiter(state1, {from: acc.arbiter, value: web3.toWei('0', 'finney')}).should.be.eventually.fulfilled;
+		const state2 = await inst.StateVersion();
+		await inst.betAssertIsFalse(state2, {from: acc.opponent, value: web3.toWei('1000', 'finney')}).should.be.eventually.fulfilled;
+
+		await inst.agreeAssertionFalse({from: acc.arbiter}).should.be.eventually.fulfilled;
+
+		await expectThrow(inst.withdraw(), {from: acc.owner});
+		await assertBalanceDiff({func: inst.withdraw, args: [], address: acc.opponent, gasPrice}, web3.toWei('1900', 'finney'));
+		await assertBalanceDiff({func: inst.withdraw, args: [], address: acc.arbiter, gasPrice}, web3.toWei('100', 'finney'));
+
+		await assertBalanceDiff({func: inst.deleteContract, args: [], address: acc.owner, gasPrice}, web3.toWei('0', 'finney'));
+		await expectNoContract(inst.OwnerAddress({from: acc.anyone}));
+	});
+
+	it('should successfully pass flow 4: opponent is never confirmed', async function() {
+		const inst = await MockBetMe.new(
+			"Gomer Simpson will win his poker game next sunday",  // Assertion text
+			daysInFutureTimestamp(10),                            // Deadline
+			web3.toWei('10'),                                     // arbiter fee percent
+			acc.arbiter,                                          // Arbiter address
+			acc.opponent,                                         // Opponent address
+			{from: acc.owner},
+		);
+		await inst.setArbiterPenaltyAmount(web3.toWei('200', 'finney'), {from: acc.owner}).should.be.eventually.fulfilled;
+		await inst.bet({from: acc.owner, value: web3.toWei('1000', 'finney')}).should.be.eventually.fulfilled;
+		const state1 = await inst.StateVersion();
+		await inst.agreeToBecameArbiter(state1, {from: acc.arbiter, value: web3.toWei('200', 'finney')}).should.be.eventually.fulfilled;
+
+		await inst.setTime(daysInFutureTimestamp(11), {from: acc.owner}).should.be.eventually.fulfilled;
+
+		await assertBalanceDiff({func: inst.withdraw, args: [], address: acc.arbiter, gasPrice}, web3.toWei('200', 'finney'));
+		await assertBalanceDiff({func: inst.withdraw, args: [], address: acc.owner, gasPrice}, web3.toWei('1000', 'finney'));
+
+		await assertBalanceDiff({func: inst.deleteContract, args: [], address: acc.owner, gasPrice}, web3.toWei('0', 'finney'));
+		await expectNoContract(inst.OwnerAddress({from: acc.anyone}));
+	});
+
+	it('should successfully pass flow 5: arbiter is never found', async function() {
+		const inst = await MockBetMe.new(
+			"Gomer Simpson will win his poker game next sunday",  // Assertion text
+			daysInFutureTimestamp(10),                            // Deadline
+			web3.toWei('10'),                                     // arbiter fee percent
+			acc.arbiter,                                          // Arbiter address
+			acc.opponent,                                         // Opponent address
+			{from: acc.owner},
+		);
+		await inst.setArbiterPenaltyAmount(web3.toWei('200', 'finney'), {from: acc.owner}).should.be.eventually.fulfilled;
+		await inst.bet({from: acc.owner, value: web3.toWei('1000', 'finney')}).should.be.eventually.fulfilled;
+
+		await inst.setTime(daysInFutureTimestamp(11), {from: acc.owner}).should.be.eventually.fulfilled;
+
+		await assertBalanceDiff({func: inst.deleteContract, args: [], address: acc.owner, gasPrice}, web3.toWei('1000', 'finney'));
+		await expectNoContract(inst.OwnerAddress({from: acc.anyone}));
+	});
+
+	it('should successfully pass flow 6', async function() {
+		const inst = await MockBetMe.new(
+			"Gomer Simpson will win his poker game someday",      // Assertion text
+			daysInFutureTimestamp(10),                            // Deadline
+			web3.toWei('10'),                                     // arbiter fee percent
+			acc.arbiter,                                          // Arbiter address
+			acc.opponent,                                         // Opponent address
+			{from: acc.owner},
+		);
+		await inst.setArbiterPenaltyAmount(web3.toWei('200', 'finney'), {from: acc.owner}).should.be.eventually.fulfilled;
+		await inst.bet({from: acc.owner, value: web3.toWei('1000', 'finney')}).should.be.eventually.fulfilled;
+		const state1 = await inst.StateVersion();
+		await inst.agreeToBecameArbiter(state1, {from: acc.arbiter, value: web3.toWei('200', 'finney')}).should.be.eventually.fulfilled;
+		const state2 = await inst.StateVersion();
+		await inst.betAssertIsFalse(state2, {from: acc.opponent, value: web3.toWei('1000', 'finney')}).should.be.eventually.fulfilled;
+
+		await inst.agreeAssertionUnresolvable({from: acc.arbiter}).should.be.eventually.fulfilled;
+
+		await assertBalanceDiff({func: inst.withdraw, args: [], address: acc.owner, gasPrice}, web3.toWei('1000', 'finney'));
+		await assertBalanceDiff({func: inst.withdraw, args: [], address: acc.opponent, gasPrice}, web3.toWei('1000', 'finney'));
+		await assertBalanceDiff({func: inst.withdraw, args: [], address: acc.arbiter, gasPrice}, web3.toWei('200', 'finney'));
+
+		await assertBalanceDiff({func: inst.deleteContract, args: [], address: acc.owner, gasPrice}, web3.toWei('0', 'finney'));
+		await expectNoContract(inst.OwnerAddress({from: acc.anyone}));
+	});
+
 });

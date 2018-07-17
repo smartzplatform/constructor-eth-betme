@@ -253,7 +253,12 @@ contract BetMe {
 	function withdrawArbiter() internal {
 		require(!IsArbiterTransferMade);
 		IsArbiterTransferMade = true;
-		ArbiterAddress.transfer(arbiterPayout());
+		if (getTime() > Deadline && !ArbiterHasVoted && IsOpponentBetConfirmed) return;
+		uint256 amount = IsArbiterAddressConfirmed ? ArbiterPenaltyAmount : 0;
+		if (ArbiterHasVoted && IsDecisionMade) {
+			amount = amount.add(ArbiterFeeAmountInEther());
+		}
+		if (amount > 0) ArbiterAddress.transfer(amount);
 	}
 
 	function withdrawOwner() internal {
@@ -276,7 +281,7 @@ contract BetMe {
 	}
 
 	function ownerPayout() public view returns (uint256) {
-		if ( getTime() > Deadline && !ArbiterHasVoted) {
+		if ( getTime() > Deadline && !ArbiterHasVoted && IsOpponentBetConfirmed) {
 			return betAmount.add(ArbiterPenaltyAmount.div(2));
 		}
 		if (ArbiterHasVoted && IsDecisionMade) {
@@ -287,9 +292,7 @@ contract BetMe {
 	}
 
 	function arbiterPayout() public view returns (uint256 amount) {
-		if ( getTime() > Deadline && !ArbiterHasVoted) {
-			return 0;
-		}
+		if ( getTime() > Deadline && !ArbiterHasVoted && IsOpponentBetConfirmed) return 0;
 		if (!ArbiterHasVoted || IsDecisionMade) {
 			amount = ArbiterFeeAmountInEther();
 		}
@@ -318,7 +321,7 @@ contract BetMe {
 
 	function IsOpponentTransferPending() internal view returns (bool) {
 		if (IsOpponentTransferMade) return false;
-		if (!ArbiterHasVoted && getTime() > Deadline) { return true; }
+		if (!ArbiterHasVoted && getTime() > Deadline && IsOpponentBetConfirmed) { return true; }
 		if (ArbiterHasVoted && !IsAssertionTrue) { return true; }
 		return false;
 	}
@@ -326,7 +329,7 @@ contract BetMe {
 	function IsArbiterTransferPending() internal view returns (bool) {
 		if (!IsArbiterAddressConfirmed) return false;
 		if (IsArbiterTransferMade) return false;
-		if (getTime() > Deadline && !ArbiterHasVoted) return false;
+		if (IsOpponentBetConfirmed && getTime() > Deadline && !ArbiterHasVoted) return false;
 		return true;
 	}
 
@@ -334,11 +337,7 @@ contract BetMe {
 		require(!IsContractDeleteForbidden());
 		require(!IsOpponentTransferPending());
 		if (IsArbiterTransferPending()) {
-			uint256 amount = ArbiterPenaltyAmount;
-			if (ArbiterHasVoted && IsDecisionMade) {
-				amount = amount.add(ArbiterFeeAmountInEther());
-			}
-			if (amount > 0) ArbiterAddress.transfer(amount);
+			withdrawArbiter();
 		}
 		selfdestruct(OwnerAddress);
 	}
