@@ -159,33 +159,6 @@ function newBetCase(inst, acc, opt) {
 	return obj;
 }
 
-//async function preconditionOpponentBetIsMade(inst, acc, defaults) {
-//	defaults = defaults == null ? {} : defaults;
-//	if (!('betAmount' in defaults)) {defaults.betAmount = web3.toWei('0.05');}
-//	if (!('arbiterAddress' in defaults)) {defaults.arbiterAddress = acc.arbiter;}
-//	if (!('opponentAddress' in defaults)) {defaults.opponentAddress = acc.opponent;}
-//	const presetOpponentAddress = 'presetOpponentAddress' in defaults ? defaults.presetOpponentAddress : true;
-//
-//	//await preconditionArbiterIsChoosenAndAgree(inst, acc, defaults);
-//	const testCase = newBetCase(inst, acc, defaults);
-//	testCase.preconditionArbiterIsChoosenAndAgree();
-//	//await inst.setOpponentAddress(acc.opponent, {from: acc.owner}).should.be.eventually.fulfilled;
-//	await testCase.setOpponentAddress();
-//	//await testCase.betAssertIsFalse();
-//
-//	//const agreedStateVersion = await inst.StateVersion();
-//	//if (presetOpponentAddress) {
-//	//	await testCase.betAssertIsFalse();
-//	//	await inst.betAssertIsFalse(
-//	//		agreedStateVersion, 
-//	//		{from: defaults.opponentAddress, value: defaults.betAmount},
-//	//	).should.be.eventually.fulfilled;
-//	//}
-//
-//	await inst.IsOpponentBetConfirmed({from: acc.anyone}).should.be.eventually.true;
-//	await inst.OpponentAddress({from: acc.anyone}).should.be.eventually.equal(defaults.opponentAddress);
-//}
-
 contract('BetMe - constructor and setters', function(accounts) {
 	const acc = {anyone: accounts[0], owner: accounts[1], opponent: accounts[2], arbiter: accounts[3]};
 
@@ -525,9 +498,9 @@ contract('BetMe - choosing arbiter', function(accounts) {
 	});
 
 	it('should allow arbiter candidate to became an arbiter', async function() {
-		const penaltyAmount = web3.toWei('0.03');
+		const penaltyAmount = web3.toWei('30', 'finney');
 		const testCase = newBetCase(this.inst, acc, {});
-		await testCase.bet(web3.toWei('0.05'));
+		await testCase.bet(web3.toWei('50', 'finney'));
 		await testCase.setArbiterPenaltyAmount(penaltyAmount);
 		await testCase.setArbiterAddress();
 
@@ -540,7 +513,7 @@ contract('BetMe - choosing arbiter', function(accounts) {
 
 	it('should allow arbiter candidate to became an arbiter when penalty amount is zero', async function() {
 		const testCase = newBetCase(this.inst, acc, {});
-		await testCase.bet(web3.toWei('0.05'));
+		await testCase.bet(web3.toWei('50', 'finney'));
 		await testCase.setArbiterAddress();
 
 		await this.inst.IsArbiterAddressConfirmed({from: acc.anyone}).should.eventually.be.false;
@@ -556,7 +529,7 @@ contract('BetMe - choosing arbiter', function(accounts) {
 		const insufficientAmount = web3.toWei('29.99', 'finney');
 		const exceedingAmount = web3.toWei('30.01', 'finney');
 		const testCase = newBetCase(this.inst, acc, {});
-		await testCase.bet(web3.toWei('0.05'));
+		await testCase.bet(web3.toWei('50', 'finney'));
 		await testCase.setArbiterPenaltyAmount(penaltyAmount);
 		await testCase.setArbiterAddress();
 
