@@ -295,6 +295,16 @@ contract('BetMe - constructor and setters', function(accounts) {
 		await expectThrow(this.inst.setOpponentAddress(acc.opponent, {from: acc.owner}));
 	});
 
+	it('should revert if setting arbiter address equal to owner address', async function() {
+		await expectThrow(this.inst.setOpponentAddress(acc.owner, {from: acc.owner}));
+	});
+
+
+	it('should revert if setting opponent address equal to arbiter address', async function() {
+		await this.inst.setArbiterAddress(acc.opponent, {from: acc.owner}).should.eventually.be.fulfilled;
+		await expectThrow(this.inst.setOpponentAddress(acc.opponent, {from: acc.owner}));
+	});
+
 	it('should not allow set ArbiterAddress if not owner', async function() {
 		await expectThrow(this.inst.setArbiterAddress(acc.arbiter, {from: acc.anyone}));
 	});
@@ -319,6 +329,11 @@ contract('BetMe - constructor and setters', function(accounts) {
 
 	it('should revert if setting arbiter address equal to owner address', async function() {
 		await expectThrow(this.inst.setArbiterAddress(acc.owner, {from: acc.owner}));
+	});
+
+	it('should revert if setting arbiter address equal to opponent address', async function() {
+		await this.inst.setOpponentAddress(acc.arbiter, {from: acc.owner}).should.eventually.be.fulfilled;
+		await expectThrow(this.inst.setArbiterAddress(acc.arbiter, {from: acc.owner}));
 	});
 
 	it('should increase version for every modification of arbiter address', async function() {

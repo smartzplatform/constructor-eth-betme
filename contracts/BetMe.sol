@@ -51,15 +51,21 @@ contract BetMe {
 		_;
 	}
 
-	modifier onlyValidArbiterandNotVoted() {
+	modifier onlyArbiter() {
 		require(msg.sender == ArbiterAddress);
-		require(IsArbiterAddressConfirmed);
-		require(!ArbiterHasVoted);
 		_;
 	}
 
 	modifier forbidArbiter() {
 		require(msg.sender != ArbiterAddress);
+		_;
+	}
+
+	modifier ensureTimeToVote() {
+		require(IsArbiterAddressConfirmed);
+		require(IsOpponentBetConfirmed);
+		require(!ArbiterHasVoted);
+		require(getTime() < Deadline);
 		_;
 	}
 
@@ -99,18 +105,8 @@ contract BetMe {
 		_;
 	}
 
-	modifier requireOpponentBetIsMade() {
-		require(IsOpponentBetConfirmed);
-		_;
-	}
-
 	modifier requireOpponentBetIsNotMade() {
 		require(!IsOpponentBetConfirmed);
-		_;
-	}
-
-	modifier notAfterDeadline() {
-		require(getTime() < Deadline);
 		_;
 	}
 
@@ -151,12 +147,15 @@ contract BetMe {
 		requireOpponentBetIsNotMade
 	{
 		require(_addr != address(OpponentAddress));
+		require(_addr != address(OwnerAddress));
+		require(_addr != address(ArbiterAddress) || _addr == address(0));
 		OpponentAddress = _addr;
 	}
 
 	function setArbiterAddress(address _addr) public onlyOwner requireArbiterNotConfirmed increaseState {
 		require(_addr != address(ArbiterAddress));
 		require(_addr != address(OwnerAddress));
+		require(_addr != address(OpponentAddress) || _addr == address(0));
 		ArbiterAddress = _addr;
 	}
 
@@ -184,8 +183,7 @@ contract BetMe {
 		IsArbiterAddressConfirmed = true;
 	}
 
-	function arbiterSelfRetreat() public requireArbiterConfirmed requireOpponentBetIsNotMade {
-		require(msg.sender == ArbiterAddress);
+	function arbiterSelfRetreat() public onlyArbiter requireArbiterConfirmed requireOpponentBetIsNotMade {
 		uint256 _value = ArbiterPenaltyAmount;
 		IsArbiterAddressConfirmed = false;
 		ArbiterPenaltyAmount = 0;
@@ -212,9 +210,7 @@ contract BetMe {
 	}
 
 	function agreeAssertionTrue() public
-		onlyValidArbiterandNotVoted
-		requireOpponentBetIsMade
-		notAfterDeadline
+		onlyArbiter ensureTimeToVote
 	{
 		ArbiterHasVoted = true;
 		IsDecisionMade = true;
@@ -222,18 +218,14 @@ contract BetMe {
 	}
 
 	function agreeAssertionFalse() public
-		onlyValidArbiterandNotVoted
-		requireOpponentBetIsMade
-		notAfterDeadline
+		onlyArbiter ensureTimeToVote
 	{
 		ArbiterHasVoted = true;
 		IsDecisionMade = true;
 	}
 
 	function agreeAssertionUnresolvable() public
-		onlyValidArbiterandNotVoted
-		requireOpponentBetIsMade
-		notAfterDeadline
+		onlyArbiter ensureTimeToVote
 	{
 		ArbiterHasVoted = true;
 	}
