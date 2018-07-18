@@ -62,10 +62,7 @@ contract BetMe {
 	}
 
 	modifier ensureTimeToVote() {
-		require(IsArbiterAddressConfirmed);
-		require(IsOpponentBetConfirmed);
-		require(!ArbiterHasVoted);
-		require(getTime() < Deadline);
+		require(IsVotingInProgress());
 		_;
 	}
 
@@ -108,6 +105,14 @@ contract BetMe {
 	modifier requireOpponentBetIsNotMade() {
 		require(!IsOpponentBetConfirmed);
 		_;
+	}
+
+	function IsVotingInProgress() internal view returns (bool) {
+		return IsArbiterAddressConfirmed && IsOpponentBetConfirmed && !ArbiterHasVoted && getTime() < Deadline;
+	}
+
+	function IsArbiterLazyBastard() internal view returns (bool) {
+		return (IsOpponentBetConfirmed && getTime() > Deadline && !ArbiterHasVoted);
 	}
 
 	function getTime() public view returns (uint256) {
@@ -209,24 +214,18 @@ contract BetMe {
 		IsOpponentBetConfirmed = true;
 	}
 
-	function agreeAssertionTrue() public
-		onlyArbiter ensureTimeToVote
-	{
+	function agreeAssertionTrue() public onlyArbiter ensureTimeToVote {
 		ArbiterHasVoted = true;
 		IsDecisionMade = true;
 		IsAssertionTrue = true;
 	}
 
-	function agreeAssertionFalse() public
-		onlyArbiter ensureTimeToVote
-	{
+	function agreeAssertionFalse() public onlyArbiter ensureTimeToVote {
 		ArbiterHasVoted = true;
 		IsDecisionMade = true;
 	}
 
-	function agreeAssertionUnresolvable() public
-		onlyArbiter ensureTimeToVote
-	{
+	function agreeAssertionUnresolvable() public onlyArbiter ensureTimeToVote {
 		ArbiterHasVoted = true;
 	}
 
@@ -246,7 +245,7 @@ contract BetMe {
 	function withdrawArbiter() internal {
 		require(!IsArbiterTransferMade);
 		IsArbiterTransferMade = true;
-		if (getTime() > Deadline && !ArbiterHasVoted && IsOpponentBetConfirmed) return;
+		if (IsArbiterLazyBastard()) return;
 		uint256 amount = IsArbiterAddressConfirmed ? ArbiterPenaltyAmount : 0;
 		if (ArbiterHasVoted && IsDecisionMade) {
 			amount = amount.add(ArbiterFeeAmountInEther());
@@ -262,8 +261,6 @@ contract BetMe {
 	}
 
 	function withdrawOpponent() internal {
-		//require((IsDecisionMade && !IsAssertionTrue) || (ArbiterHasVoted && !IsDecisionMade) || getTime() > Deadline);
-		//require(!IsOpponentTransferMade);
 		require(IsOpponentTransferPending());
 		IsOpponentTransferMade = true;
 		OpponentAddress.transfer(opponentPayout());
@@ -272,25 +269,19 @@ contract BetMe {
 	function ArbiterFeeAmountInEther() public view returns (uint256){
 		return betAmount.mul(ArbiterFee).div(1e20);
 	}
+	
+	function WinnerPayout() internal view returns (uint256) {
+		return betAmount.mul(2).sub(ArbiterFeeAmountInEther());
+	}
 
 	function ownerPayout() public view returns (uint256) {
 		if ( getTime() > Deadline && !ArbiterHasVoted && IsOpponentBetConfirmed) {
 			return betAmount.add(ArbiterPenaltyAmount.div(2));
 		}
 		if (ArbiterHasVoted && IsDecisionMade) {
-			return (IsAssertionTrue ? betAmount.mul(2).sub(ArbiterFeeAmountInEther()) : 0);
+			return (IsAssertionTrue ? WinnerPayout() : 0);
 		} else {
 			return betAmount;
-		}
-	}
-
-	function arbiterPayout() public view returns (uint256 amount) {
-		if ( getTime() > Deadline && !ArbiterHasVoted && IsOpponentBetConfirmed) return 0;
-		if (!ArbiterHasVoted || IsDecisionMade) {
-			amount = ArbiterFeeAmountInEther();
-		}
-		if (IsArbiterAddressConfirmed) {
-			amount = amount.add(ArbiterPenaltyAmount);
 		}
 	}
 
@@ -299,37 +290,32 @@ contract BetMe {
 			return betAmount.add(ArbiterPenaltyAmount.div(2));
 		}
 		if (ArbiterHasVoted && IsDecisionMade) {
-			return (IsAssertionTrue ? 0 : betAmount.mul(2).sub(ArbiterFeeAmountInEther()));
+			return (IsAssertionTrue ? 0 : WinnerPayout());
 		}
 		return IsOpponentBetConfirmed ? betAmount : 0;
 	}
 
-
-	function IsContractDeleteForbidden() internal view returns (bool) {
-		if (getTime() > Deadline) { return false; }
-		if (ArbiterHasVoted) { return false; }
-		if (!IsOpponentBetConfirmed) { return false; }
-		return true;
+	function arbiterPayout() public view returns (uint256 amount) {
+		if (IsArbiterLazyBastard()) return 0;
+		if (!ArbiterHasVoted || IsDecisionMade) {
+			amount = ArbiterFeeAmountInEther();
+		}
+		if (IsArbiterAddressConfirmed) {
+			amount = amount.add(ArbiterPenaltyAmount);
+		}
 	}
 
 	function IsOpponentTransferPending() internal view returns (bool) {
 		if (IsOpponentTransferMade) return false;
-		if (!ArbiterHasVoted && getTime() > Deadline && IsOpponentBetConfirmed) { return true; }
-		if (ArbiterHasVoted && !IsAssertionTrue) { return true; }
+		if (IsArbiterLazyBastard()) return true;
+		if (ArbiterHasVoted && !IsAssertionTrue) return true;
 		return false;
 	}
 
-	function IsArbiterTransferPending() internal view returns (bool) {
-		if (!IsArbiterAddressConfirmed) return false;
-		if (IsArbiterTransferMade) return false;
-		if (IsOpponentBetConfirmed && getTime() > Deadline && !ArbiterHasVoted) return false;
-		return true;
-	}
-
 	function deleteContract() public onlyOwner {
-		require(!IsContractDeleteForbidden());
+		require(!IsVotingInProgress());
 		require(!IsOpponentTransferPending());
-		if (IsArbiterTransferPending()) {
+		if (IsArbiterAddressConfirmed && !IsArbiterTransferMade) {
 			withdrawArbiter();
 		}
 		selfdestruct(OwnerAddress);
