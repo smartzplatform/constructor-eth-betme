@@ -33,7 +33,7 @@ class Constructor(ConstructorInstance):
                 },
                 "arbiterAddr": {
                     "title": "Arbiter ethereum address",
-                    "description": "Arbiter desides is the assertion true or false. Leave this field blank to choose arbiter later",
+                    "description": "Arbiter decides is the assertion true or false. Leave this field blank to choose arbiter later",
                     "$ref": "#/definitions/address"
                 },
                 "feePercent": {
@@ -65,15 +65,6 @@ class Constructor(ConstructorInstance):
         }
 
     def construct(self, fields):
-        #variants_code = ''
-
-        #for variant_id, variant in enumerate(fields['variants']):
-        #    variants_code += """
-        #        variants.push('{variant_descr}');variantIds[sha256('{variant_descr}')] = {variant_id};
-        #    """.format(
-        #        variant_descr=variant,
-        #        variant_id=variant_id+1
-        #    )
         zeroAddr = 'address(0)'
         arbiterAddr = fields.get('arbiterAddr', zeroAddr) or zeroAddr
         opponentAddr = fields.get('opponentAddr', zeroAddr) or zeroAddr
@@ -94,9 +85,120 @@ class Constructor(ConstructorInstance):
     def post_construct(self, fields, abi_array):
 
         function_titles = {
+             # View functions
+            'Assertion': {
+                'title': 'Assertion text',
+                'description': 'some statement considered to be true by contract owner',
+                 'sorting_order': 1,
+            },
+            'currentBet': {
+                'title': 'Current bet amount',
+                'description': 'Ether amount sent by contract owner to bet on assertion text is true',
+                "ui:widget": "ethCount",
+                'sorting_order': 2,
+            },
+            'Deadline': {
+                'title': 'Deadline',
+                'description': 'Current value of Deadline',
+                "ui:widget": "unixTime",
+                'sorting_order': 3,
+            },
+            'ArbiterFee': {
+                'title': 'Arbiter fee percent',
+                'description': 'Current value for arbiter fee as percent of bet amount',
+                "ui:widget": "ethCount",
+                'sorting_order': 4,
+            },
+            'ArbiterPenaltyAmount': {
+                'title': 'Arbiter penalty amount',
+                'description': 'Ether amount arbiter must send as a garantee of his intention to judge this dispute',
+                "ui:widget": "ethCount",
+                'sorting_order': 5,
+            },
+            'ArbiterAddress': {
+                "title": "Arbiter ethereum address",
+                "description": "Arbiter decides is the assertion true or false",
+                'sorting_order': 6,
+            },
+            'OpponentAddress': {
+                "title": "Opponent ethereum address",
+                "description": "If this address set to 0x0000000000000000000000000000000000000000, anyone may bet on assertion is false",
+                'sorting_order': 7,
+            },
+            # Write functions
+            'setAssertionText': {
+                'title': 'Change assertion text',
+                'description': 'some statement considered to be true by contract owner',
+                'inputs': [
+                    {'title': 'Assertion', 'description': 'write some true statement in text form'},
+                ],
+                'sorting_order': 100,
+            },
+            'setDeadline': {
+                'title': 'Change deadline',
+                'description': 'choose new date of dispute forced interruption',
+                'inputs': [
+                    {
+                        'title': 'new deadline',
+                        'description': 'arbiter should be able to make decision before new deadline',
+                        'ui:widget': 'unixTime'
+                    },
+                ],
+                'sorting_order': 101,
+            },
+            'setArbiterFee': {
+                'title': 'Change arbiter fee percent',
+                'description': 'set new value of arbiter fee as percent of future bet amount',
+                'inputs': [
+                    {
+                        'title': 'new fee percent [0,100.0)',
+                        'description': 'change arbiter fee value before arbiter agreed to judge the dispute',
+                        'ui:widget': 'ethCount'
+                    },
+                ],
+                'sorting_order': 102,
+            },
+            'setArbiterPenaltyAmount': {
+                'title': 'Change arbiter penalty amount',
+                'description': 'ether value to be sent by arbiter as a garantee and returned to him after he made his decision',
+                'inputs': [
+                    {
+                        'title': 'ether amount',
+                        'description': 'arbiter penalty amount',
+                        'ui:widget': 'ethCount'
+                    },
+                ],
+                'sorting_order': 103,
+            },
+            'setArbiterAddress': {
+                'title': 'Change arbiter address',
+                'description': 'Arbiter address must be set before arbiter agreed to judge the dispute',
+                'inputs': [
+                    {
+                        'title': 'Arbiter ethereum address',
+                        'description': 'Arbiter ethereum address',
+                    },
+                ],
+                'sorting_order': 104,
+            },
+            'setOpponentAddress': {
+                'title': 'Change opponnet address',
+                'description': 'Opponent address may be set to limit dispute participants to one person',
+                'inputs': [
+                    {
+                        'title': 'Opponent ethereum address',
+                        'description': 'set this to 0x0000000000000000000000000000000000000000 to let anyone be an opponnet',
+                    },
+                ],
+                'sorting_order': 105,
+            },
             'bet': {
-                'title': 'Owner bets assertion is true',
-                'description': 'send ether to this function to bet on assertion text'
+                'title': 'Bet',
+                'description': 'Make owner bet',
+                'payable_details': {
+                    'title': 'Bet amount',
+                    'description': 'Ether amount to bet for asertion text is a true statement',
+                },
             },
 
         }
