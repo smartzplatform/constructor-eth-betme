@@ -13,7 +13,7 @@ class Constructor(ConstructorInstance):
         json_schema = {
             "type": "object",
             "required": [
-                "assertion", "deadline", "feePercent"
+                "assertion", "deadline"
             ],
             "additionalProperties": True,
 
@@ -68,11 +68,12 @@ class Constructor(ConstructorInstance):
         zeroAddr = 'address(0)'
         arbiterAddr = fields.get('arbiterAddr', zeroAddr) or zeroAddr
         opponentAddr = fields.get('opponentAddr', zeroAddr) or zeroAddr
+        feePercent = fields.get('feePercent', 0) or 0;
 
         source = self.__class__._TEMPLATE \
             .replace('%assertion%', fields['assertion']) \
             .replace('%deadline%', str(fields['deadline'])) \
-            .replace('%feePercent%', str(fields['feePercent'])) \
+            .replace('%feePercent%', str(feePercent)) \
             .replace('%arbiterAddr%', arbiterAddr) \
             .replace('%opponentAddr%', opponentAddr) \
 
@@ -124,6 +125,56 @@ class Constructor(ConstructorInstance):
                 "title": "Opponent ethereum address",
                 "description": "If this address set to 0x0000000000000000000000000000000000000000, anyone may bet on assertion is false",
                 'sorting_order': 7,
+            },
+            'StateVersion': {
+                "title": "Current state version number",
+                "description": "Current state version number must be passed as a parameter to agreeToBecameArbiter and betAssertIsFalse functions",
+                'sorting_order': 8,
+            },
+            'IsArbiterAddressConfirmed': {
+                "title": "Arbiter agreed to judge this dispute",
+                "description": "Arbiter has confirmed he is argee to judge this dispute with specific assertion text, deadline, bet, fee and penalty amount",
+                'sorting_order': 20,
+            },
+            'IsOpponentBetConfirmed': {
+                "title": "Is opponent confirmed his bet",
+                "description": "There is opponent found for this dispute and hi made his bet by transfering ether to smartcontract",
+                'sorting_order': 21,
+            },
+            'IsDecisionMade': {
+                "title": "Arbiter considered assertion true or false",
+                "description": "Arbiter is agreed to judge this dispute and considered statement exactly true or false",
+                'sorting_order': 22,
+            },
+            'ownerPayout': {
+                'title': 'Owner payout',
+                'description': 'helper func',
+                "ui:widget": "ethCount",
+                'sorting_order': 100,
+            },
+            'opponentPayout': {
+                'title': 'Opponent payout',
+                'description': 'helper func',
+                "ui:widget": "ethCount",
+                'sorting_order': 101,
+            },
+            'arbiterPayout': {
+                'title': 'Arbiter payout',
+                'description': 'helper func',
+                "ui:widget": "ethCount",
+                'sorting_order': 102,
+            },
+            'ArbiterFeeAmountInEther': {
+                'title': 'Arbiter fee in ether',
+                'description': 'Considering bet amount and arbiter fee percent, how much ether arbiter will be able to withdraw',
+                "ui:widget": "ethCount",
+                'sorting_order': 103,
+            },
+            'getTime': {
+                'title': 'now',
+                'description': 'current timestamp',
+                "ui:widget": "unixTime",
+                'sorting_order': 300,
             },
             # Write functions
             'setAssertionText': {
@@ -193,14 +244,74 @@ class Constructor(ConstructorInstance):
                 'sorting_order': 105,
             },
             'bet': {
-                'title': 'Bet',
+                'title': 'Owner Bet',
                 'description': 'Make owner bet',
                 'payable_details': {
                     'title': 'Bet amount',
                     'description': 'Ether amount to bet for asertion text is a true statement',
                 },
+                'sorting_order': 106,
             },
-
+            'agreeToBecameArbiter': {
+                'title': 'Agree to be an arbiter',
+                'description': 'Agree to became an arbiter for this dispute and send penalty amount (if it is not zero)',
+                'payable_details': {
+                    'title': 'arbiter penalty amount',
+                    'description': 'Ether amount equal to what is returned by ArbiterPenaltyAmount function',
+                },
+                'inputs': [
+                    {
+                        'title': 'version state number',
+                        'description': 'Place current value of "Current state version number" here',
+                    },
+                ],
+                'sorting_order': 107,
+            },
+            'arbiterSelfRetreat': {
+                'title': 'Arbiter self retreat',
+                'description': 'Arbiter may retreat if no opponnet bet has been made',
+                'sorting_order': 108,
+            },
+            'betAssertIsFalse': {
+                'title': 'Opponent Bet',
+                'description': 'Make opponent bet for assertion text contains false statement',
+                'payable_details': {
+                    'title': 'Bet amount',
+                    'description': 'Ether amount must be equal to owner bet as returned by "Current bet amount" (currentBet function)',
+                },
+                'inputs': [
+                    {
+                        'title': 'version state number',
+                        'description': 'Place current value of "Current state version number" here',
+                    },
+                ],
+                'sorting_order': 109,
+            },
+            'agreeAssertionTrue': {
+                'title': 'Arbiter: assertion is True',
+                'description': 'Arbiter confirm assertion text contains true statement',
+                'sorting_order': 110,
+            },
+            'agreeAssertionFalse': {
+                'title': 'Arbiter: assertion is False',
+                'description': 'Arbiter confirm assertion text contains false statement',
+                'sorting_order': 111,
+            },
+            'agreeAssertionUnresolvable': {
+                'title': 'Arbiter: assertion can not be checked',
+                'description': 'Arbiter confirm assertion text contains statement that may not be checked for true or false due to some "Force Majeure"',
+                'sorting_order': 112,
+            },
+            'withdraw': {
+                'title': 'Withdraw ether',
+                'description': 'Contract owner, his opponent and arbiter call withdraw after disput has ended in some way to take out ether',
+                'sorting_order': 113,
+            },
+            'deleteContract': {
+                'title': 'Drop contract',
+                'description': 'Owner may drop contract on some stages (for example if there is no opponnet has been found to bet)',
+                'sorting_order': 114,
+            },
         }
 
         return {
