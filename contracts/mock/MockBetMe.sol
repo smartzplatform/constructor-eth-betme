@@ -21,14 +21,16 @@ contract MockBetMe is BetMe {
 		uint256 _deadline,
 		uint256 _fee,
 		address _arbiterAddr,
-		address _opponentAddr
+		address _opponentAddr,
+		uint256 _arbiterPenaltyAmount
 	) public 
 		BetMe(
 		_assertion,
 		_deadline,
 		_fee,
 		_arbiterAddr,
-		_opponentAddr
+		_opponentAddr,
+		_arbiterPenaltyAmount
 		)
 	{
 	}

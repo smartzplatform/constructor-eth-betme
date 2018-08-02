@@ -46,6 +46,11 @@ class Constructor(ConstructorInstance):
                     "description": "You may leave this field blank to let anyone bet against your assertion or set opponent address later",
                     "$ref": "#/definitions/address"
                 },
+                "arbiterPenaltyAmount": {
+                    "title": "Arbiter penalty amount",
+                    "description": "Ether value to be sent by arbiter as a garantee and returned to him after he made his decision",
+                    "$ref": "#/definitions/ethCount"
+                },
             }
         }
 
@@ -54,6 +59,9 @@ class Constructor(ConstructorInstance):
                 "ui:widget": "unixTime",
             },
             "feePercent": {
+                "ui:widget": "ethCount",
+            },
+            "arbiterPenaltyAmount": {
                 "ui:widget": "ethCount",
             },
         }
@@ -69,6 +77,7 @@ class Constructor(ConstructorInstance):
         arbiterAddr = fields.get('arbiterAddr', zeroAddr) or zeroAddr
         opponentAddr = fields.get('opponentAddr', zeroAddr) or zeroAddr
         feePercent = fields.get('feePercent', 0) or 0;
+        arbiterPenaltyAmount = fields.get('arbiterPenaltyAmount', 0) or 0;
 
         source = self.__class__._TEMPLATE \
             .replace('%assertion%', fields['assertion']) \
@@ -76,6 +85,7 @@ class Constructor(ConstructorInstance):
             .replace('%feePercent%', str(feePercent)) \
             .replace('%arbiterAddr%', arbiterAddr) \
             .replace('%opponentAddr%', opponentAddr) \
+            .replace('%arbiterPenaltyAmount%', str(arbiterPenaltyAmount)) \
 
         return {
             "result": "success",
@@ -400,7 +410,8 @@ contract BetMe {
 		uint256 _deadline,
 		uint256 _fee,
 		address _arbiterAddr,
-		address _opponentAddr
+		address _opponentAddr,
+		uint256 _arbiterPenaltyAmount
 	) public {
 		OwnerAddress = msg.sender;
 		_setAssertionText(_assertion);
@@ -408,6 +419,7 @@ contract BetMe {
 		_setArbiterFee(_fee);
 		ArbiterAddress  = _arbiterAddr;
 		OpponentAddress = _opponentAddr;
+		ArbiterPenaltyAmount = _arbiterPenaltyAmount;
 	}
 
 	modifier onlyOwner() {
@@ -691,5 +703,5 @@ contract BetMe {
 	}
 }
 
-contract BetMeWrapper is BetMe("%assertion%", %deadline%, %feePercent%, %arbiterAddr%, %opponentAddr%){}
+contract BetMeWrapper is BetMe("%assertion%", %deadline%, %feePercent%, %arbiterAddr%, %opponentAddr%, %arbiterPenaltyAmount%){}
     """

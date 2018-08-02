@@ -22,6 +22,7 @@ function daysInFutureTimestamp(days) {
 const defaultAssertion = "Norman can light his Zippo cigarette lighter ten times in a row";
 const defaultDeadlineDate = daysInFutureTimestamp(14);
 const defaultArbiterFee = web3.toWei('1.5');
+const defaultArbiterPenaltyAmount = web3.toWei('0');
 const zeroAddr = '0x0000000000000000000000000000000000000000';
 
 function constructorArgs(defaults) {
@@ -32,6 +33,7 @@ function constructorArgs(defaults) {
 		('ArbiterFee' in defaults ? defaults.ArbiterFee : defaultArbiterFee),
 		('ArbiterAddress' in defaults ? defaults.ArbiterAddress : zeroAddr),
 		('OpponentAddress' in defaults ? defaults.OpponentAddress : zeroAddr),
+		('ArbiterPenaltyAmount' in defaults ? defaults.ArbiterPenaltyAmount : defaultArbiterPenaltyAmount),
 	];
 }
 
@@ -188,6 +190,16 @@ contract('BetMe - constructor and setters', function(accounts) {
 
 	it('should provide public getter for opponent address', async function() {
 		await this.inst.OpponentAddress({from: acc.anyone}).should.eventually.be.equal(zeroAddr);
+	});
+
+	it('should provide public getter for ArbiterPenaltyAmount', async function() {
+		await this.inst.ArbiterPenaltyAmount({from: acc.anyone}).should.eventually.be.bignumber.equal(defaultArbiterPenaltyAmount);
+	});
+
+	it('should set ArbiterPenaltyAmount from constructor args', async function() {
+		const ArbiterPenaltyAmount = web3.toWei('100', 'finney');
+		this.inst = await BetMe.new(...constructorArgs({ArbiterPenaltyAmount}), {from: acc.owner},);
+		await this.inst.ArbiterPenaltyAmount({from: acc.anyone}).should.eventually.be.bignumber.equal(ArbiterPenaltyAmount);
 	});
 
 	it('should not allow zero deadline in constructor', async function() {
@@ -1959,9 +1971,36 @@ contract('BetMe - example expected flow', function(accounts) {
 			web3.toWei('10'),                                     // arbiter fee percent
 			acc.arbiter,                                          // Arbiter address
 			acc.opponent,                                         // Opponent address
+			web3.toWei('0'),                                      // arbiter penalty amount
 			{from: acc.owner},
 		);
 		await inst.setArbiterPenaltyAmount(web3.toWei('200', 'finney'), {from: acc.owner}).should.be.eventually.fulfilled;
+		await inst.bet({from: acc.owner, value: web3.toWei('1000', 'finney')}).should.be.eventually.fulfilled;
+		const state1 = await inst.StateVersion();
+		await inst.agreeToBecameArbiter(state1, {from: acc.arbiter, value: web3.toWei('200', 'finney')}).should.be.eventually.fulfilled;
+		const state2 = await inst.StateVersion();
+		await inst.betAssertIsFalse(state2, {from: acc.opponent, value: web3.toWei('1000', 'finney')}).should.be.eventually.fulfilled;
+
+		await inst.agreeAssertionTrue({from: acc.arbiter}).should.be.eventually.fulfilled;
+
+		await assertBalanceDiff({func: inst.withdraw, args: [], address: acc.arbiter, gasPrice}, web3.toWei('300', 'finney'));
+		await expectThrow(inst.withdraw(), {from: acc.opponent});
+		await assertBalanceDiff({func: inst.withdraw, args: [], address: acc.owner, gasPrice}, web3.toWei('1900', 'finney'));
+
+		await assertBalanceDiff({func: inst.deleteContract, args: [], address: acc.owner, gasPrice}, web3.toWei('0', 'finney'));
+		await expectNoContract(inst.OwnerAddress({from: acc.anyone}));
+	});
+
+	it('should successfully pass flow 1.5 - arbiter penalty amount set in constructor', async function() {
+		const inst = await BetMe.new(
+			"Gomer Simpson will win his poker game next sunday",  // Assertion text
+			daysInFutureTimestamp(10),                            // Deadline
+			web3.toWei('10'),                                     // arbiter fee percent
+			acc.arbiter,                                          // Arbiter address
+			acc.opponent,                                         // Opponent address
+			web3.toWei('200', 'finney'),                          // arbiter penalty amount
+			{from: acc.owner},
+		);
 		await inst.bet({from: acc.owner, value: web3.toWei('1000', 'finney')}).should.be.eventually.fulfilled;
 		const state1 = await inst.StateVersion();
 		await inst.agreeToBecameArbiter(state1, {from: acc.arbiter, value: web3.toWei('200', 'finney')}).should.be.eventually.fulfilled;
@@ -1985,6 +2024,7 @@ contract('BetMe - example expected flow', function(accounts) {
 			web3.toWei('10'),                                     // arbiter fee percent
 			acc.arbiter,                                          // Arbiter address
 			acc.opponent,                                         // Opponent address
+			web3.toWei('0'),                                      // arbiter penalty amount
 			{from: acc.owner},
 		);
 		await inst.setArbiterPenaltyAmount(web3.toWei('200', 'finney'), {from: acc.owner}).should.be.eventually.fulfilled;
@@ -2012,6 +2052,7 @@ contract('BetMe - example expected flow', function(accounts) {
 			web3.toWei('10'),                                     // arbiter fee percent
 			acc.arbiter,                                          // Arbiter address
 			acc.opponent,                                         // Opponent address
+			web3.toWei('0'),                                      // arbiter penalty amount
 			{from: acc.owner},
 		);
 		await inst.bet({from: acc.owner, value: web3.toWei('1000', 'finney')}).should.be.eventually.fulfilled;
@@ -2037,6 +2078,7 @@ contract('BetMe - example expected flow', function(accounts) {
 			web3.toWei('10'),                                     // arbiter fee percent
 			acc.arbiter,                                          // Arbiter address
 			acc.opponent,                                         // Opponent address
+			web3.toWei('0'),                                      // arbiter penalty amount
 			{from: acc.owner},
 		);
 		await inst.setArbiterPenaltyAmount(web3.toWei('200', 'finney'), {from: acc.owner}).should.be.eventually.fulfilled;
@@ -2060,6 +2102,7 @@ contract('BetMe - example expected flow', function(accounts) {
 			web3.toWei('10'),                                     // arbiter fee percent
 			acc.arbiter,                                          // Arbiter address
 			acc.opponent,                                         // Opponent address
+			web3.toWei('0'),                                      // arbiter penalty amount
 			{from: acc.owner},
 		);
 		await inst.setArbiterPenaltyAmount(web3.toWei('200', 'finney'), {from: acc.owner}).should.be.eventually.fulfilled;
@@ -2078,6 +2121,7 @@ contract('BetMe - example expected flow', function(accounts) {
 			web3.toWei('10'),                                     // arbiter fee percent
 			acc.arbiter,                                          // Arbiter address
 			acc.opponent,                                         // Opponent address
+			web3.toWei('0'),                                      // arbiter penalty amount
 			{from: acc.owner},
 		);
 		await inst.setArbiterPenaltyAmount(web3.toWei('200', 'finney'), {from: acc.owner}).should.be.eventually.fulfilled;

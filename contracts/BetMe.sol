@@ -31,7 +31,8 @@ contract BetMe {
 		uint256 _deadline,
 		uint256 _fee,
 		address _arbiterAddr,
-		address _opponentAddr
+		address _opponentAddr,
+		uint256 _arbiterPenaltyAmount
 	) public {
 		OwnerAddress = msg.sender;
 		_setAssertionText(_assertion);
@@ -39,6 +40,7 @@ contract BetMe {
 		_setArbiterFee(_fee);
 		ArbiterAddress  = _arbiterAddr;
 		OpponentAddress = _opponentAddr;
+		ArbiterPenaltyAmount = _arbiterPenaltyAmount;
 	}
 
 	modifier onlyOwner() {
