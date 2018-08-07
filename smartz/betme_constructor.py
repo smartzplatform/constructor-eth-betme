@@ -20,7 +20,7 @@ class Constructor(ConstructorInstance):
             "properties": {
                 "assertion": {
                     "title": "Assertion text",
-                    "description": "You as owner of contract will bet this assertion is true, while your opponent will bet it is false.",
+                    "description": "You as owner of contract will bet this assertion is true, while your opponent will bet it is false. You can change this later, but just before you make a bet.",
                     "type": "string",
                     "minLength": 3,
                     "maxLength": 400,
@@ -28,27 +28,27 @@ class Constructor(ConstructorInstance):
                 },
                 "deadline": {
                     "title": "Deadline",
-                    "description": "Dispute should be resolved before this point in time, otherwise no one considered a winner. Choose date in the future, otherwise deploy will fail",
+                    "description": "Dispute should be resolved before this point in time, otherwise no one considered a winner. Choose a date and time in the future, otherwise deploy will fail.",
                     "$ref": "#/definitions/unixTime",
                 },
                 "arbiterAddr": {
-                    "title": "Arbiter ethereum address",
-                    "description": "Arbiter decides is the assertion true or false. Leave this field blank to choose arbiter later",
+                    "title": "Arbiter address",
+                    "description": "Arbiter decides is the assertion true, false or can not be checked. She gets the fee for judging and stakes deposit as a guarantee of motivation to get job done. When arbiter agrees to judge, contract's terms become inviolable.",
                     "$ref": "#/definitions/address"
                 },
                 "feePercent": {
                     "title": "Arbiter fee percent",
-                    "description": "Arbiter fee as % of bet amount [0-100). If you bet for 1 ether and feePercent is 10, then arbiter will receive 0.1 ether, and the winner will receive 0.9 ether",
+                    "description": "Arbiter fee as % of bet amount, should be in range [0-100). For example, if you bet for 1 ether and feePercent is 10, arbiter will receive 0.1 ether, and the winner will receive 0.9 ether.",
                     "$ref": "#/definitions/ethCount"
                 },
                 "opponentAddr": {
-                    "title": "Opponent ethereum address",
-                    "description": "You may leave this field blank to let anyone bet against your assertion or set opponent address later",
+                    "title": "Opponent address",
+                    "description": "Opponent bet for assertion is false. Leave this field blank to let anyone become an opponent.",
                     "$ref": "#/definitions/address"
                 },
                 "arbiterPenaltyAmount": {
                     "title": "Arbiter penalty amount",
-                    "description": "Ether value to be sent by arbiter as a garantee and returned to him after he made his decision",
+                    "description": "Ether value to be sent by arbiter as a guarantee of his motivation and returned to him after he made decision.",
                     "$ref": "#/definitions/ethCount"
                 },
             }
@@ -99,105 +99,142 @@ class Constructor(ConstructorInstance):
              # View functions
             'Assertion': {
                 'title': 'Assertion text',
-                'description': 'some statement considered to be true by contract owner',
-                 'sorting_order': 1,
-            },
-            'currentBet': {
-                'title': 'Current bet amount',
-                'description': 'Ether amount sent by contract owner to bet on assertion text is true',
-                "ui:widget": "ethCount",
-                'sorting_order': 2,
+                'description': 'Statement considered to be true by contract owner.',
+                 'sorting_order': 10,
             },
             'Deadline': {
                 'title': 'Deadline',
                 'description': 'Current value of Deadline',
                 "ui:widget": "unixTime",
-                'sorting_order': 3,
+                'sorting_order': 20,
+            },
+            'currentBet': {
+                'title': 'Current bet amount',
+                'description': 'Ether amount sent by contract owner to bet on assertion text is true',
+                "ui:widget": "ethCount",
+                'sorting_order': 30,
+            },
+            'OwnerAddress': {
+                'title': 'Owner address',
+                'description': 'Address of the bet contract owner. She deployed the contract, can change it\'s parameters before arbiter comes, and bet for assertion is true.',
+                'sorting_order': 40,
+            },
+            'ArbiterAddress': {
+                "title": "Arbiter address",
+                "description": "Arbiter decides is the assertion true, false or can not be checked. She gets the fee for judging and stakes deposit as a guarantee of motivation to get job done. When arbiter agrees to judge, contract's terms become inviolable.",
+                'sorting_order': 50,
+            },
+            'OpponentAddress': {
+                "title": "Opponent address",
+                "description": "Opponent bet for assertion is false. If this address set to 0x0000000000000000000000000000000000000000, anyone may become an opponent. Can bet only after arbiter agreed.",
+                'sorting_order': 60,
             },
             'ArbiterFee': {
                 'title': 'Arbiter fee percent',
                 'description': 'Current value for arbiter fee as percent of bet amount',
                 "ui:widget": "ethCount",
-                'sorting_order': 4,
-            },
-            'ArbiterPenaltyAmount': {
-                'title': 'Arbiter penalty amount',
-                'description': 'Ether amount arbiter must send as a garantee of his intention to judge this dispute',
-                "ui:widget": "ethCount",
-                'sorting_order': 5,
-            },
-            'ArbiterAddress': {
-                "title": "Arbiter ethereum address",
-                "description": "Arbiter decides is the assertion true or false",
-                'sorting_order': 6,
-            },
-            'OpponentAddress': {
-                "title": "Opponent ethereum address",
-                "description": "If this address set to 0x0000000000000000000000000000000000000000, anyone may bet on assertion is false",
-                'sorting_order': 7,
-            },
-            'StateVersion': {
-                "title": "Current state version number",
-                "description": "Current state version number must be passed as a parameter to agreeToBecameArbiter and betAssertIsFalse functions",
-                'sorting_order': 8,
-            },
-            'IsArbiterAddressConfirmed': {
-                "title": "Arbiter agreed to judge this dispute",
-                "description": "Arbiter has confirmed he is argee to judge this dispute with specific assertion text, deadline, bet, fee and penalty amount",
-                'sorting_order': 20,
-            },
-            'IsOpponentBetConfirmed': {
-                "title": "Is opponent confirmed his bet",
-                "description": "There is opponent found for this dispute and hi made his bet by transfering ether to smartcontract",
-                'sorting_order': 21,
-            },
-            'IsDecisionMade': {
-                "title": "Arbiter considered assertion true or false",
-                "description": "Arbiter is agreed to judge this dispute and considered statement exactly true or false",
-                'sorting_order': 22,
-            },
-            'ownerPayout': {
-                'title': 'Owner payout',
-                'description': 'helper func',
-                "ui:widget": "ethCount",
-                'sorting_order': 100,
-            },
-            'opponentPayout': {
-                'title': 'Opponent payout',
-                'description': 'helper func',
-                "ui:widget": "ethCount",
-                'sorting_order': 101,
-            },
-            'arbiterPayout': {
-                'title': 'Arbiter payout',
-                'description': 'helper func',
-                "ui:widget": "ethCount",
-                'sorting_order': 102,
+                'sorting_order': 70,
             },
             'ArbiterFeeAmountInEther': {
                 'title': 'Arbiter fee in ether',
-                'description': 'Considering bet amount and arbiter fee percent, how much ether arbiter will be able to withdraw',
+                'description': 'Calculated from bet amount and arbiter fee percent.',
                 "ui:widget": "ethCount",
-                'sorting_order': 103,
+                'sorting_order': 80,
+            },
+            'ArbiterPenaltyAmount': {
+                'title': 'Arbiter deposit amount',
+                'description': 'Arbiter must freeze this amount as a incentive to judge this dispute.',
+                "ui:widget": "ethCount",
+                'sorting_order': 90,
+            },
+            'StateVersion': {
+                "title": "State version number",
+                "description": "Current state version number secures other participants from sudden changes in dispute terms by owner. Version changes every time owner edits the terms. Opponent and arbiter should specify which version do they mind when signing transactions to confirm their partaking in contract. If specified version not coincides with current, transaction reverts.",
+                'sorting_order': 100,
+            },
+            'IsArbiterAddressConfirmed': {
+                "title": "Arbiter agreed to judge",
+                "description": "Arbiter has confirmed he is argee to judge this dispute with specific assertion text, deadline, bet, fee and penalty amount.",
+                'sorting_order': 110,
+            },
+            'IsOpponentBetConfirmed': {
+                "title": "Opponent confirmed his bet",
+                "description": "Opponent made his bet opposite contract owner by transfering appropriate amount of ether to the smart contract.",
+                'sorting_order': 120,
+            },
+            'ArbiterHasVoted': {
+                "title": "Arbiter has made decision",
+                "description": "Arbiter's decision can be one of: assertion is true, assertion is false, assertion can not be checked.",
+                'sorting_order': 130,
+            },
+            'IsDecisionMade': {
+                "title": "Arbiter considered assertion true or false",
+                "description": "Arbiter confirmed that assertion is chacked and voted it is true or false.",
+                'sorting_order': 140,
+            },
+            'IsAssertionTrue': {
+                "title": "Assertion is true",
+                "description": "Helper function for payouts calculations.",
+                'sorting_order': 150,
+            },
+            'ownerPayout': {
+                'title': 'Owner payout',
+                'description': 'Amount of ether to be claimed by owner after dispute judged or failed.',
+                "ui:widget": "ethCount",
+                'sorting_order': 160,
+            },
+            'opponentPayout': {
+                'title': 'Opponent payout',
+                'description': 'Amount of ether to be claimed by opponent after dispute judged or failed.',
+                "ui:widget": "ethCount",
+                'sorting_order': 170,
+            },
+            'arbiterPayout': {
+                'title': 'Arbiter payout',
+                'description': 'Amount of ether to be claimed by arbiter after dispute judged or failed.',
+                "ui:widget": "ethCount",
+                'sorting_order': 180,
+            },
+            'IsOwnerTransferMade': {
+                'title': 'Owner claimed payout',
+                'description': 'Shows if an owner claimed his payout after dispute judged or failed.',
+                'sorting_order': 190,
+            },
+            'IsOpponentTransferMade': {
+                'title': 'Opponent claimed payout',
+                'description': 'Shows if an owner claimed his payout after dispute judged or failed.',
+                'sorting_order': 200,
+            },
+            'IsArbiterTransferMade': {
+                'title': 'Arbiter claimed payout',
+                'description': 'Shows if an owner claimed his payout after dispute judged or failed.',
+                'sorting_order': 210,
             },
             'getTime': {
-                'title': 'now',
-                'description': 'current timestamp',
+                'title': 'Current timestamp',
+                'description': 'Just in case',
                 "ui:widget": "unixTime",
-                'sorting_order': 300,
+                'sorting_order': 220,
             },
             # Write functions
             'setAssertionText': {
                 'title': 'Change assertion text',
-                'description': 'some statement considered to be true by contract owner',
+                'description': 'Only owner function. Can be called only before owner bet. Changes statement you bet to be true.',
                 'inputs': [
-                    {'title': 'Assertion', 'description': 'write some true statement in text form'},
+                    {
+                        'title': 'Assertion',
+                        'description': 'Statement you bet to be true.'
+                    },
                 ],
-                'sorting_order': 100,
+                'sorting_order': 300,
+                'icon': {
+                    'pack': 'materialdesignicons',
+                    'name': 'text'
+                },
             },
             'setDeadline': {
                 'title': 'Change deadline',
-                'description': 'choose new date of dispute forced interruption',
+                'description': 'Only owner function. Can be called only before owner bet. Dispute should be resolved before this point in time, otherwise no one considered a winner. Choose a date and time in the future, otherwise transaction will fail.',
                 'inputs': [
                     {
                         'title': 'new deadline',
@@ -205,11 +242,15 @@ class Constructor(ConstructorInstance):
                         'ui:widget': 'unixTime'
                     },
                 ],
-                'sorting_order': 101,
+                'sorting_order': 310,
+                'icon': {
+                    'pack': 'materialdesignicons',
+                    'name': 'timer-sand'
+                },
             },
             'setArbiterFee': {
                 'title': 'Change arbiter fee percent',
-                'description': 'set new value of arbiter fee as percent of future bet amount',
+                'description': 'Only owner function. Can be called only before arbiter agreed. Arbiter fee as % of bet amount, should be in range [0-100). For example, if you bet for 1 ether and feePercent is 10, arbiter will receive 0.1 ether, and the winner will receive 0.9 ether.',
                 'inputs': [
                     {
                         'title': 'new fee percent [0,100.0)',
@@ -217,70 +258,98 @@ class Constructor(ConstructorInstance):
                         'ui:widget': 'ethCount'
                     },
                 ],
-                'sorting_order': 102,
+                'sorting_order': 320,
+                'icon': {
+                    'pack': 'materialdesignicons',
+                    'name': 'percent'
+                },
             },
             'setArbiterPenaltyAmount': {
-                'title': 'Change arbiter penalty amount',
-                'description': 'ether value to be sent by arbiter as a garantee and returned to him after he made his decision',
+                'title': 'Change arbiter deposit',
+                'description': 'Only owner function. Can be called only before arbiter agreed.',
                 'inputs': [
                     {
-                        'title': 'ether amount',
-                        'description': 'arbiter penalty amount',
+                        'title': 'Deposit amount',
+                        'description': 'Arbiter must freeze this amount as a incentive to judge this dispute.',
                         'ui:widget': 'ethCount'
                     },
                 ],
-                'sorting_order': 103,
+                'sorting_order': 330,
+                'icon': {
+                    'pack': 'materialdesignicons',
+                    'name': 'security-lock'
+                },
             },
             'setArbiterAddress': {
                 'title': 'Change arbiter address',
-                'description': 'Arbiter address must be set before arbiter agreed to judge the dispute',
+                'description': 'Only owner function. Can be called only before owner bet. Arbiter decides is the assertion true, false or can not be checked. She gets the fee for judging and stakes deposit as a guarantee of motivation to get job done. When arbiter agrees to judge, contract\'s terms become inviolable. Should be set before arbiter can agree, arbiter can not be random',
                 'inputs': [
                     {
                         'title': 'Arbiter ethereum address',
                         'description': 'Arbiter ethereum address',
                     },
                 ],
-                'sorting_order': 104,
+                'sorting_order': 340,
+                'icon': {
+                    'pack': 'materialdesignicons',
+                    'name': 'security-account'
+                },
             },
             'setOpponentAddress': {
                 'title': 'Change opponnet address',
-                'description': 'Opponent address may be set to limit dispute participants to one person',
+                'description': 'Only owner function. Can be called only before owner bet. Opponent bet for assertion is false.',
                 'inputs': [
                     {
-                        'title': 'Opponent ethereum address',
-                        'description': 'set this to 0x0000000000000000000000000000000000000000 to let anyone be an opponnet',
+                        'title': 'Opponent address',
+                        'description': 'Leave this field blank to let anyone become an opponent.',
                     },
                 ],
-                'sorting_order': 105,
+                'sorting_order': 350,
+                'icon': {
+                    'pack': 'materialdesignicons',
+                    'name': 'account-alert'
+                },
             },
             'bet': {
                 'title': 'Owner Bet',
                 'description': 'Make owner bet',
                 'payable_details': {
                     'title': 'Bet amount',
-                    'description': 'Ether amount to bet for asertion text is a true statement',
+                    'description': 'Now you decide how much do you bet and accordingly how much your opponent should bet to take the challenge. Can not be changed.',
                 },
-                'sorting_order': 106,
+                'sorting_order': 360,
+                'icon': {
+                    'pack': 'materialdesignicons',
+                    'name': 'check-circle'
+                },
             },
             'agreeToBecameArbiter': {
                 'title': 'Agree to be an arbiter',
-                'description': 'Agree to became an arbiter for this dispute and send penalty amount (if it is not zero)',
+                'description': 'Only arbiter function. You agree to became an arbiter for this dispute and send penalty amount (if it is not set to zero by owner). When you agree, all contract\'s terms will freeze. You can self retreat before opponent bets.' ,
                 'payable_details': {
-                    'title': 'arbiter penalty amount',
-                    'description': 'Ether amount equal to what is returned by ArbiterPenaltyAmount function',
+                    'title': 'Arbiter deposit amount',
+                    'description': 'Ether deposit amount (returned by "Arbiter deposit amount" function) to confim you are to freeze this ether as a guarantee you will judge the dispute. If you will not show, betters will split it.',
                 },
                 'inputs': [
                     {
-                        'title': 'version state number',
-                        'description': 'Place current value of "Current state version number" here',
+                        'title': 'State version number',
+                        'description': 'Returned by "State version number" function. This field secures you from sudden changes in dispute terms by owner. Version changes every time owner edits the terms. Opponent and arbiter should specify which version do they mind when signing transactions to confirm their partaking in contract. If specified version not coincides with current, transaction reverts.',
                     },
                 ],
-                'sorting_order': 107,
+                'sorting_order': 370,
+                'icon': {
+                    'pack': 'materialdesignicons',
+                    'name': 'check'
+                },
             },
             'arbiterSelfRetreat': {
                 'title': 'Arbiter self retreat',
-                'description': 'Arbiter may retreat if no opponnet bet has been made',
-                'sorting_order': 108,
+                'description': 'Only arbiter function. After arbiter agreed but before opponent bet, arbiter may retreat and get her deposit back.',
+                'sorting_order': 380,
+                'icon': {
+                    'pack': 'materialdesignicons',
+                    'name': 'close'
+                },
             },
             'betAssertIsFalse': {
                 'title': 'Opponent Bet',
@@ -291,43 +360,67 @@ class Constructor(ConstructorInstance):
                 },
                 'inputs': [
                     {
-                        'title': 'version state number',
-                        'description': 'Place current value of "Current state version number" here',
+                        'title': 'State version number',
+                        'description': 'Returned by "State version number" function. This field secures you from sudden changes in dispute terms by owner. Version changes every time owner edits the terms. Opponent and arbiter should specify which version do they mind when signing transactions to confirm their partaking in contract. If specified version not coincides with current, transaction reverts.',
                     },
                 ],
-                'sorting_order': 109,
+                'sorting_order': 390,
+                'icon': {
+                    'pack': 'materialdesignicons',
+                    'name': 'alert-circle'
+                },
             },
             'agreeAssertionTrue': {
                 'title': 'Arbiter: assertion is True',
-                'description': 'Arbiter confirm assertion text contains true statement',
-                'sorting_order': 110,
+                'description': 'Only arbiter function. Arbiter confirm assertion text contains false statement (owner wins). After this function called, participants can claim their payouts.',
+                'sorting_order': 400,
+                'icon': {
+                    'pack': 'materialdesignicons',
+                    'name': 'comment-check-outline'
+                },
             },
             'agreeAssertionFalse': {
                 'title': 'Arbiter: assertion is False',
-                'description': 'Arbiter confirm assertion text contains false statement',
-                'sorting_order': 111,
+                'description': 'Only arbiter function. Arbiter confirm assertion text contains false statement (opponent wins). After this function called, participants can claim their payouts.',
+                'sorting_order': 410,
+                'icon': {
+                    'pack': 'materialdesignicons',
+                    'name': 'comment-remove-outline'
+                },
             },
             'agreeAssertionUnresolvable': {
                 'title': 'Arbiter: assertion can not be checked',
-                'description': 'Arbiter confirm assertion text contains statement that may not be checked for true or false due to some "Force Majeure"',
-                'sorting_order': 112,
+                'description': 'Only arbiter function. Arbiter affirms assertion can not be checked (everybody get their bets and deposits back). After this function called, participants can claim their payouts.',
+                'sorting_order': 420,
+                'icon': {
+                    'pack': 'materialdesignicons',
+                    'name': 'comment-question-outline'
+                },
             },
             'withdraw': {
-                'title': 'Withdraw ether',
-                'description': 'Contract owner, his opponent and arbiter call withdraw after disput has ended in some way to take out ether',
-                'sorting_order': 113,
+                'title': 'Get payout',
+                'description': 'All participants of the contract claim their payouts with this function after dispute has ended.',
+                'sorting_order': 430,
+                'icon': {
+                    'pack': 'materialdesignicons',
+                    'name': 'currency-eth'
+                },
             },
             'deleteContract': {
                 'title': 'Drop contract',
-                'description': 'Owner may drop contract on some stages (for example if there is no opponnet has been found to bet)',
-                'sorting_order': 114,
+                'description': 'Owner can drop the contract on some stages (for example, if there is no opponnet found).',
+                'sorting_order': 440,
+                'icon': {
+                    'pack': 'materialdesignicons',
+                    'name': 'delete'
+                },
             },
         }
 
         return {
             "result": "success",
             'function_specs': function_titles,
-            'dashboard_functions': ['IsArbiterAddressConfirmed', 'IsOpponentBetConfirmed',]
+            'dashboard_functions': ['Assertion', 'Deadline', 'currentBet', 'ArbiterHasVoted']
         }
 
 
@@ -527,8 +620,8 @@ contract BetMe {
 		ArbiterFee      = _percent;
 	}
 
-	function setOpponentAddress(address _addr) public 
-		onlyOwner 
+	function setOpponentAddress(address _addr) public
+		onlyOwner
 		increaseState
 		requireOpponentBetIsNotMade
 	{
@@ -559,9 +652,9 @@ contract BetMe {
 		ArbiterPenaltyAmount = _amount;
 	}
 
-	function agreeToBecameArbiter(uint256 _agreedState) public payable 
+	function agreeToBecameArbiter(uint256 _agreedState) public payable
 		onlyArbiterCandidate
-		requireOwnerBetIsMade 
+		requireOwnerBetIsMade
 		stateNumberMatches(_agreedState)
 	{
 		require(ArbiterAddress != address(0));
@@ -578,12 +671,12 @@ contract BetMe {
 		}
 	}
 
-	function betAssertIsFalse(uint256 _agreedState) public payable 
-		requireOwnerBetIsMade 
+	function betAssertIsFalse(uint256 _agreedState) public payable
+		requireOwnerBetIsMade
 		forbidOwner
 		requireArbiterConfirmed
 		forbidArbiter
-		stateNumberMatches(_agreedState) 
+		stateNumberMatches(_agreedState)
 		requireOpponentBetIsNotMade
 	{
 		require(msg.value == betAmount);
@@ -650,7 +743,7 @@ contract BetMe {
 	function ArbiterFeeAmountInEther() public view returns (uint256){
 		return betAmount.mul(ArbiterFee).div(1e20);
 	}
-	
+
 	function WinnerPayout() internal view returns (uint256) {
 		return betAmount.mul(2).sub(ArbiterFeeAmountInEther());
 	}
