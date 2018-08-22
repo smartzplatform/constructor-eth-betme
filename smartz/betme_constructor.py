@@ -13,7 +13,7 @@ class Constructor(ConstructorInstance):
         json_schema = {
             "type": "object",
             "required": [
-                "assertion", "deadline"
+                "assertion"
             ],
             "additionalProperties": True,
 
@@ -76,6 +76,8 @@ class Constructor(ConstructorInstance):
 
     def construct(self, fields):
         zeroAddr = 'address(0)'
+        defaultDeadline = 'now + 86400*7'
+        deadline = fields.get('deadline', defaultDeadline) or defaultDeadline
         arbiterAddr = fields.get('arbiterAddr', zeroAddr) or zeroAddr
         opponentAddr = fields.get('opponentAddr', zeroAddr) or zeroAddr
         feePercent = fields.get('feePercent', 0) or 0;
@@ -83,7 +85,7 @@ class Constructor(ConstructorInstance):
 
         source = self.__class__._TEMPLATE \
             .replace('%assertion%', fields['assertion']) \
-            .replace('%deadline%', str(fields['deadline'])) \
+            .replace('%deadline%', str(deadline)) \
             .replace('%feePercent%', str(feePercent)) \
             .replace('%arbiterAddr%', arbiterAddr) \
             .replace('%opponentAddr%', opponentAddr) \
