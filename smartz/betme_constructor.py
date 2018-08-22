@@ -704,4 +704,6 @@ contract BetMe {
 }
 
 contract BetMeWrapper is BetMe("%assertion%", %deadline%, %feePercent%, %arbiterAddr%, %opponentAddr%, %arbiterPenaltyAmount%){}
+
+%payment_code%
     """
