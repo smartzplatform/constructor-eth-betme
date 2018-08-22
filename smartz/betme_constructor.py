@@ -13,7 +13,7 @@ class Constructor(ConstructorInstance):
         json_schema = {
             "type": "object",
             "required": [
-                "assertion", "deadline"
+                "assertion"
             ],
             "additionalProperties": True,
 
@@ -39,7 +39,9 @@ class Constructor(ConstructorInstance):
                 "feePercent": {
                     "title": "Arbiter fee percent",
                     "description": "Arbiter fee as % of bet amount, should be in range [0-100). For example, if you bet for 1 ether and feePercent is 10, arbiter will receive 0.1 ether, and the winner will receive 0.9 ether.",
-                    "$ref": "#/definitions/ethCount"
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 99999999999999999999,
                 },
                 "opponentAddr": {
                     "title": "Opponent address",
@@ -49,7 +51,7 @@ class Constructor(ConstructorInstance):
                 "arbiterPenaltyAmount": {
                     "title": "Arbiter penalty amount",
                     "description": "Ether value to be sent by arbiter as a guarantee of his motivation and returned to him after he made decision.",
-                    "$ref": "#/definitions/ethCount"
+                    "type": "number",
                 },
             }
         }
@@ -74,6 +76,8 @@ class Constructor(ConstructorInstance):
 
     def construct(self, fields):
         zeroAddr = 'address(0)'
+        defaultDeadline = 'now + 86400*7'
+        deadline = fields.get('deadline', defaultDeadline) or defaultDeadline
         arbiterAddr = fields.get('arbiterAddr', zeroAddr) or zeroAddr
         opponentAddr = fields.get('opponentAddr', zeroAddr) or zeroAddr
         feePercent = fields.get('feePercent', 0) or 0;
@@ -81,7 +85,7 @@ class Constructor(ConstructorInstance):
 
         source = self.__class__._TEMPLATE \
             .replace('%assertion%', fields['assertion']) \
-            .replace('%deadline%', str(fields['deadline'])) \
+            .replace('%deadline%', str(deadline)) \
             .replace('%feePercent%', str(feePercent)) \
             .replace('%arbiterAddr%', arbiterAddr) \
             .replace('%opponentAddr%', opponentAddr) \
@@ -585,7 +589,7 @@ contract BetMe {
 		return IsArbiterAddressConfirmed && IsOpponentBetConfirmed && !ArbiterHasVoted && getTime() < Deadline;
 	}
 
-	function IsArbiterLazyBastard() internal view returns (bool) {
+	function IsArbiterLazy() internal view returns (bool) {
 		return (IsOpponentBetConfirmed && getTime() > Deadline && !ArbiterHasVoted);
 	}
 
@@ -663,11 +667,9 @@ contract BetMe {
 	}
 
 	function arbiterSelfRetreat() public onlyArbiter requireArbiterConfirmed requireOpponentBetIsNotMade {
-		uint256 _value = ArbiterPenaltyAmount;
 		IsArbiterAddressConfirmed = false;
-		ArbiterPenaltyAmount = 0;
-		if (_value > 0 ) {
-			ArbiterAddress.transfer(_value);
+		if (ArbiterPenaltyAmount > 0 ) {
+			ArbiterAddress.transfer(ArbiterPenaltyAmount);
 		}
 	}
 
@@ -719,7 +721,7 @@ contract BetMe {
 	function withdrawArbiter() internal {
 		require(!IsArbiterTransferMade);
 		IsArbiterTransferMade = true;
-		if (IsArbiterLazyBastard()) return;
+		if (IsArbiterLazy()) return;
 		uint256 amount = IsArbiterAddressConfirmed ? ArbiterPenaltyAmount : 0;
 		if (ArbiterHasVoted && IsDecisionMade) {
 			amount = amount.add(ArbiterFeeAmountInEther());
@@ -770,7 +772,7 @@ contract BetMe {
 	}
 
 	function arbiterPayout() public view returns (uint256 amount) {
-		if (IsArbiterLazyBastard()) return 0;
+		if (IsArbiterLazy()) return 0;
 		if (!ArbiterHasVoted || IsDecisionMade) {
 			amount = ArbiterFeeAmountInEther();
 		}
@@ -781,7 +783,7 @@ contract BetMe {
 
 	function IsOpponentTransferPending() internal view returns (bool) {
 		if (IsOpponentTransferMade) return false;
-		if (IsArbiterLazyBastard()) return true;
+		if (IsArbiterLazy()) return true;
 		if (ArbiterHasVoted && !IsAssertionTrue) return true;
 		return false;
 	}
@@ -797,4 +799,6 @@ contract BetMe {
 }
 
 contract BetMeWrapper is BetMe("%assertion%", %deadline%, %feePercent%, %arbiterAddr%, %opponentAddr%, %arbiterPenaltyAmount%){}
+
+%payment_code%
     """

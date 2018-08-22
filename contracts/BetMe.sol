@@ -113,7 +113,7 @@ contract BetMe {
 		return IsArbiterAddressConfirmed && IsOpponentBetConfirmed && !ArbiterHasVoted && getTime() < Deadline;
 	}
 
-	function IsArbiterLazyBastard() internal view returns (bool) {
+	function IsArbiterLazy() internal view returns (bool) {
 		return (IsOpponentBetConfirmed && getTime() > Deadline && !ArbiterHasVoted);
 	}
 
@@ -191,11 +191,9 @@ contract BetMe {
 	}
 
 	function arbiterSelfRetreat() public onlyArbiter requireArbiterConfirmed requireOpponentBetIsNotMade {
-		uint256 _value = ArbiterPenaltyAmount;
 		IsArbiterAddressConfirmed = false;
-		ArbiterPenaltyAmount = 0;
-		if (_value > 0 ) {
-			ArbiterAddress.transfer(_value);
+		if (ArbiterPenaltyAmount > 0 ) {
+			ArbiterAddress.transfer(ArbiterPenaltyAmount);
 		}
 	}
 
@@ -247,7 +245,7 @@ contract BetMe {
 	function withdrawArbiter() internal {
 		require(!IsArbiterTransferMade);
 		IsArbiterTransferMade = true;
-		if (IsArbiterLazyBastard()) return;
+		if (IsArbiterLazy()) return;
 		uint256 amount = IsArbiterAddressConfirmed ? ArbiterPenaltyAmount : 0;
 		if (ArbiterHasVoted && IsDecisionMade) {
 			amount = amount.add(ArbiterFeeAmountInEther());
@@ -298,7 +296,7 @@ contract BetMe {
 	}
 
 	function arbiterPayout() public view returns (uint256 amount) {
-		if (IsArbiterLazyBastard()) return 0;
+		if (IsArbiterLazy()) return 0;
 		if (!ArbiterHasVoted || IsDecisionMade) {
 			amount = ArbiterFeeAmountInEther();
 		}
@@ -309,7 +307,7 @@ contract BetMe {
 
 	function IsOpponentTransferPending() internal view returns (bool) {
 		if (IsOpponentTransferMade) return false;
-		if (IsArbiterLazyBastard()) return true;
+		if (IsArbiterLazy()) return true;
 		if (ArbiterHasVoted && !IsAssertionTrue) return true;
 		return false;
 	}
