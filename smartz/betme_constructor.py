@@ -39,7 +39,9 @@ class Constructor(ConstructorInstance):
                 "feePercent": {
                     "title": "Arbiter fee percent",
                     "description": "Arbiter fee as % of bet amount [0-100). If you bet for 1 ether and feePercent is 10, then arbiter will receive 0.1 ether, and the winner will receive 0.9 ether",
-                    "$ref": "#/definitions/ethCount"
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 99999999999999999999,
                 },
                 "opponentAddr": {
                     "title": "Opponent ethereum address",
@@ -49,7 +51,7 @@ class Constructor(ConstructorInstance):
                 "arbiterPenaltyAmount": {
                     "title": "Arbiter penalty amount",
                     "description": "Ether value to be sent by arbiter as a garantee and returned to him after he made his decision",
-                    "$ref": "#/definitions/ethCount"
+                    "type": "number",
                 },
             }
         }
