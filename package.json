@@ -1,6 +1,6 @@
 {
   "name": "betme-ether",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Made a bet with specific punter or suggest your bet contract to public. Bet for anything you want, the object is up to you!",
   "main": "index.js",
   "scripts": {
