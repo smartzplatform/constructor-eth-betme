@@ -656,6 +656,20 @@ contract('BetMe - choosing arbiter', function(accounts) {
 		await this.inst.IsArbiterAddressConfirmed({from: acc.anyone}).should.be.eventually.false;
 	});
 
+	it('should allow arbiter to accept/retreat twice', async function() {
+		const penaltyAmount = web3.toWei('40', 'finney');
+		const testCase = newBetCase(this.inst, acc, {});
+		await testCase.preconditionArbiterIsChoosenAndAgree({penaltyAmount});
+
+		await this.inst.arbiterSelfRetreat({from:acc.arbiter}).should.be.eventually.fulfilled;
+		await this.inst.IsArbiterAddressConfirmed({from: acc.anyone}).should.be.eventually.false;
+		await this.inst.ArbiterPenaltyAmount({from: acc.anyone}).should.be.eventually.bignumber.equal(penaltyAmount);
+		await testCase.agreeToBecameArbiter();
+		await this.inst.IsArbiterAddressConfirmed({from: acc.anyone}).should.be.eventually.true;
+		await this.inst.arbiterSelfRetreat({from:acc.arbiter}).should.be.eventually.fulfilled;
+		await this.inst.IsArbiterAddressConfirmed({from: acc.anyone}).should.be.eventually.false;
+	});
+
 	it('should allow arbiter to retreat in case where penalty amount is not set(zero)', async function() {
 		const testCase = newBetCase(this.inst, acc, {});
 		await testCase.preconditionArbiterIsChoosenAndAgree({setPenaltyAmount: false});

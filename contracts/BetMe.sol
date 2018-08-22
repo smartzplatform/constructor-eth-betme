@@ -191,11 +191,9 @@ contract BetMe {
 	}
 
 	function arbiterSelfRetreat() public onlyArbiter requireArbiterConfirmed requireOpponentBetIsNotMade {
-		uint256 _value = ArbiterPenaltyAmount;
 		IsArbiterAddressConfirmed = false;
-		ArbiterPenaltyAmount = 0;
-		if (_value > 0 ) {
-			ArbiterAddress.transfer(_value);
+		if (ArbiterPenaltyAmount > 0 ) {
+			ArbiterAddress.transfer(ArbiterPenaltyAmount);
 		}
 	}
 
